@@ -2,8 +2,16 @@
   command = "npm run build"
   publish = "dist"
 
+# Proxy all API requests to the live AWS EC2 backend server
+[[redirects]]
+  from = "/api/*"
+  to = "http://52.77.253.100:5000/api/:splat"
+  status = 200
+  force = true
+
 # SPA Fallback rule for React Router: Any page reload will route through index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
