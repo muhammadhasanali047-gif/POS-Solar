@@ -1,0 +1,561 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password_hash String
+  full_name     String
+  role          String    @default("MANAGER") // ADMIN, CEO, MANAGER
+  branch_id     String?
+  phone         String?
+  avatar_url    String?
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  branch        Branch?   @relation(fields: [branch_id], references: [id])
+}
+
+model Branch {
+  id            String    @id @default(uuid())
+  name          String
+  code          String    @unique
+  address       String?
+  phone         String?
+  email         String?
+  is_active     Boolean   @default(true)
+  is_main       Boolean   @default(false)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  users         User[]
+  warehouses    Warehouse[]
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  is_system   Boolean  @default(false)
+  permissions String?  // JSON array of permission keys
+  created_at  DateTime @default(now())
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  image_url   String?
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  products    Product[]
+}
+
+model Brand {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  country     String?
+  logo_url    String?
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  products    Product[]
+}
+
+model Product {
+  id              String         @id @default(uuid())
+  name            String
+  category_id     String
+  brand_id        String
+  model_number    String?
+  description     String?
+  is_serialized   Boolean        @default(false)
+  min_stock_alert Int            @default(5)
+  purchase_price  Float          @default(0)
+  sale_price      Float          @default(0)
+  is_active       Boolean        @default(true)
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+
+  category        Category       @relation(fields: [category_id], references: [id])
+  brand           Brand          @relation(fields: [brand_id], references: [id])
+  variants        ProductVariant[]
+  serial_numbers  SerialNumber[]
+  inventories     Inventory[]
+}
+
+model ProductVariant {
+  id              String         @id @default(uuid())
+  product_id      String
+  name            String
+  sku             String         @unique
+  barcode         String?
+  wattage         Float?
+  voltage         Float?
+  capacity        String?
+  technology      String?
+  dimensions      String?
+  weight          Float?
+  warranty_years  Int            @default(1)
+  purchase_price  Float          @default(0)
+  sale_price      Float          @default(0)
+  is_active       Boolean        @default(true)
+
+  product         Product        @relation(fields: [product_id], references: [id])
+  serial_numbers  SerialNumber[]
+  inventories     Inventory[]
+}
+
+model Warehouse {
+  id            String      @id @default(uuid())
+  name          String
+  code          String      @unique
+  branch_id     String?
+  location      String?
+  is_active     Boolean     @default(true)
+  created_at    DateTime    @default(now())
+
+  branch        Branch?     @relation(fields: [branch_id], references: [id])
+  inventories   Inventory[]
+  serials       SerialNumber[]
+}
+
+model Inventory {
+  id            String         @id @default(uuid())
+  warehouse_id  String
+  product_id    String
+  variant_id    String?
+  quantity      Int            @default(0)
+  reserved_qty  Int            @default(0)
+  available_qty Int            @default(0)
+  avg_cost      Float          @default(0)
+  updated_at    DateTime       @updatedAt
+
+  warehouse     Warehouse      @relation(fields: [warehouse_id], references: [id])
+  product       Product        @relation(fields: [product_id], references: [id])
+  variant       ProductVariant? @relation(fields: [variant_id], references: [id])
+}
+
+model InventoryTransaction {
+  id               String   @id @default(uuid())
+  transaction_no   String   @unique
+  warehouse_id     String
+  product_id       String
+  variant_id       String?
+  type             String   // PURCHASE_IN, SALE_OUT, RETURN_IN, DAMAGE_OUT, TRANSFER_IN, TRANSFER_OUT, ADJUSTMENT
+  quantity         Int
+  before_qty       Int
+  after_qty        Int
+  reference_type   String?  // SALE, PURCHASE, TRANSFER, MANUAL
+  reference_id     String?
+  unit_cost        Float    @default(0)
+  notes            String?
+  created_by       String?
+  branch_id        String?
+  created_at       DateTime @default(now())
+}
+
+model StockTransfer {
+  id                String    @id @default(uuid())
+  transfer_no       String    @unique
+  from_warehouse_id String
+  to_warehouse_id   String
+  status            String    @default("PENDING") // PENDING, IN_TRANSIT, COMPLETED, CANCELLED
+  initiated_by      String?
+  received_by       String?
+  transfer_date     DateTime  @default(now())
+  received_date     DateTime?
+  notes             String?
+  items_json        String?   // JSON list of transfer items
+}
+
+model SerialNumber {
+  id                  String         @id @default(uuid())
+  serial_no           String         @unique
+  product_id          String
+  variant_id          String?
+  warehouse_id        String?
+  status              String         @default("IN_STOCK") // IN_STOCK, RESERVED, SOLD, INSTALLED, CLAIMED, DEFECTIVE
+  current_customer_id String?
+  sale_item_id        String?
+  purchase_item_id    String?
+  purchase_date       DateTime?
+  sale_date           DateTime?
+  warranty_end_date   DateTime?
+  notes               String?
+  created_at          DateTime       @default(now())
+  updated_at          DateTime       @updatedAt
+
+  product             Product        @relation(fields: [product_id], references: [id])
+  variant             ProductVariant? @relation(fields: [variant_id], references: [id])
+  warehouse           Warehouse?     @relation(fields: [warehouse_id], references: [id])
+  warranties          Warranty[]
+}
+
+model Customer {
+  id                  String         @id @default(uuid())
+  customer_no         String         @unique
+  name                String
+  customer_type       String         @default("INDIVIDUAL") // INDIVIDUAL, COMMERCIAL
+  phone               String
+  alt_phone           String?
+  email               String?
+  cnic                String?
+  address             String?
+  city                String?
+  credit_limit        Float          @default(0)
+  outstanding_balance Float          @default(0)
+  notes               String?
+  branch_id           String?
+  created_at          DateTime       @default(now())
+  updated_at          DateTime       @updatedAt
+
+  quotations          Quotation[]
+  sales               Sale[]
+  payments            Payment[]
+  installations       Installation[]
+}
+
+model Supplier {
+  id                  String     @id @default(uuid())
+  supplier_no         String     @unique
+  company_name        String
+  contact_person      String?
+  phone               String
+  email               String?
+  address             String?
+  total_purchased     Float      @default(0)
+  amount_paid         Float      @default(0)
+  outstanding_payable Float      @default(0)
+  notes               String?
+  created_at          DateTime   @default(now())
+  updated_at          DateTime   @updatedAt
+
+  purchases           Purchase[]
+}
+
+model Dealer {
+  id                     String       @id @default(uuid())
+  dealer_no              String       @unique
+  name                   String
+  company_name           String?
+  phone                  String
+  email                  String?
+  address                String?
+  commission_type        String       @default("PERCENTAGE") // PERCENTAGE, FIXED_PER_KW
+  commission_value       Float        @default(5.0)
+  total_sales_volume     Float        @default(0)
+  total_commission_earned Float       @default(0)
+  commission_paid        Float        @default(0)
+  balance_payable        Float        @default(0)
+  status                 String       @default("ACTIVE") // ACTIVE, INACTIVE
+  notes                  String?
+  created_at             DateTime     @default(now())
+  updated_at             DateTime     @updatedAt
+
+  sales                  Sale[]
+  commissions            Commission[]
+}
+
+model Commission {
+  id            String    @id @default(uuid())
+  commission_no String    @unique
+  dealer_id     String
+  sale_id       String
+  amount        Float
+  status        String    @default("PENDING") // PENDING, APPROVED, PAID
+  paid_date     DateTime?
+  payment_ref   String?
+  notes         String?
+  created_at    DateTime  @default(now())
+
+  dealer        Dealer    @relation(fields: [dealer_id], references: [id])
+  sale          Sale      @relation(fields: [sale_id], references: [id])
+}
+
+model SolarPackage {
+  id            String             @id @default(uuid())
+  package_no    String             @unique
+  name          String
+  capacity_kw   Float
+  package_type  String             @default("ON_GRID") // ON_GRID, HYBRID, OFF_GRID
+  description   String?
+  base_price    Float              @default(0)
+  is_active     Boolean            @default(true)
+  created_at    DateTime           @default(now())
+  updated_at    DateTime           @updatedAt
+
+  items         SolarPackageItem[]
+  quotations    Quotation[]
+}
+
+model SolarPackageItem {
+  id               String       @id @default(uuid())
+  package_id       String
+  product_id       String
+  variant_id       String?
+  default_quantity Int          @default(1)
+  notes            String?
+
+  package          SolarPackage @relation(fields: [package_id], references: [id])
+}
+
+model Quotation {
+  id                   String          @id @default(uuid())
+  quotation_no         String          @unique
+  customer_id          String
+  package_id           String?
+  branch_id            String?
+  system_capacity_kw   Float?
+  subtotal             Float           @default(0)
+  discount             Float           @default(0)
+  tax                  Float           @default(0)
+  installation_charges Float           @default(0)
+  transport_charges    Float           @default(0)
+  grand_total          Float           @default(0)
+  status               String          @default("DRAFT") // DRAFT, SENT, APPROVED, REJECTED, CONVERTED_TO_SALE
+  validity_date        DateTime?
+  notes                String?
+  created_by           String?
+  created_at           DateTime        @default(now())
+  updated_at           DateTime        @updatedAt
+
+  customer             Customer        @relation(fields: [customer_id], references: [id])
+  package              SolarPackage?   @relation(fields: [package_id], references: [id])
+  items                QuotationItem[]
+  sales                Sale[]
+}
+
+model QuotationItem {
+  id           String    @id @default(uuid())
+  quotation_id String
+  product_id   String
+  variant_id   String?
+  description  String?
+  quantity     Int       @default(1)
+  unit_price   Float     @default(0)
+  total_price  Float     @default(0)
+  is_custom    Boolean   @default(false)
+
+  quotation    Quotation @relation(fields: [quotation_id], references: [id])
+}
+
+model Sale {
+  id                   String        @id @default(uuid())
+  invoice_no           String        @unique
+  quotation_id         String?
+  customer_id          String
+  dealer_id            String?
+  branch_id            String?
+  salesperson_id       String?
+  system_capacity_kw   Float?
+  subtotal             Float         @default(0)
+  discount             Float         @default(0)
+  tax                  Float         @default(0)
+  installation_charges Float         @default(0)
+  transport_charges    Float         @default(0)
+  grand_total          Float         @default(0)
+  paid_amount          Float         @default(0)
+  balance_due          Float         @default(0)
+  payment_status       String        @default("UNPAID") // UNPAID, PARTIAL, PAID
+  order_status         String        @default("COMPLETED") // COMPLETED, CANCELLED
+  notes                String?
+  created_by           String?
+  created_at           DateTime      @default(now())
+  updated_at           DateTime      @updatedAt
+
+  quotation            Quotation?    @relation(fields: [quotation_id], references: [id])
+  customer             Customer      @relation(fields: [customer_id], references: [id])
+  dealer               Dealer?       @relation(fields: [dealer_id], references: [id])
+  items                SaleItem[]
+  payments             Payment[]
+  installations        Installation[]
+  commissions          Commission[]
+}
+
+model SaleItem {
+  id                  String   @id @default(uuid())
+  sale_id             String
+  product_id          String
+  variant_id          String?
+  quantity            Int      @default(1)
+  unit_price          Float    @default(0)
+  unit_cost           Float    @default(0)
+  total_price         Float    @default(0)
+  profit              Float    @default(0)
+  serial_numbers_json String?  // JSON array of serial strings
+
+  sale                Sale     @relation(fields: [sale_id], references: [id])
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  payment_no      String   @unique
+  sale_id         String
+  customer_id     String
+  amount          Float
+  payment_method  String   @default("CASH") // CASH, BANK_TRANSFER, CHEQUE, ONLINE
+  transaction_ref String?
+  payment_date    DateTime @default(now())
+  received_by     String?
+  notes           String?
+  created_at      DateTime @default(now())
+
+  sale            Sale     @relation(fields: [sale_id], references: [id])
+  customer        Customer @relation(fields: [customer_id], references: [id])
+}
+
+model Purchase {
+  id             String         @id @default(uuid())
+  po_no          String         @unique
+  supplier_id    String
+  warehouse_id   String?
+  branch_id      String?
+  total_amount   Float          @default(0)
+  paid_amount    Float          @default(0)
+  balance_amount Float          @default(0)
+  payment_status String         @default("UNPAID") // UNPAID, PARTIAL, PAID
+  status         String         @default("ORDERED") // ORDERED, RECEIVED, CANCELLED
+  purchase_date  DateTime       @default(now())
+  notes          String?
+  created_by     String?
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+
+  supplier       Supplier       @relation(fields: [supplier_id], references: [id])
+  items          PurchaseItem[]
+}
+
+model PurchaseItem {
+  id                  String   @id @default(uuid())
+  purchase_id         String
+  product_id          String
+  variant_id          String?
+  quantity            Int      @default(1)
+  unit_cost           Float    @default(0)
+  total_cost          Float    @default(0)
+  serial_numbers_json String?  // JSON array of serial strings
+
+  purchase            Purchase @relation(fields: [purchase_id], references: [id])
+}
+
+model Installation {
+  id                  String    @id @default(uuid())
+  job_no              String    @unique
+  sale_id             String
+  customer_id         String
+  branch_id           String?
+  address             String
+  system_capacity_kw  Float?
+  scheduled_date      DateTime?
+  completed_date      DateTime?
+  assigned_technician String?
+  status              String    @default("PENDING") // PENDING, SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+  checklist_json      String?   // JSON object of checklist items
+  test_results_json   String?   // JSON object of testing metrics (Voc, Isc, inverter test, earthing test)
+  notes               String?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  sale                Sale      @relation(fields: [sale_id], references: [id])
+  customer            Customer  @relation(fields: [customer_id], references: [id])
+}
+
+model Warranty {
+  id               String          @id @default(uuid())
+  warranty_no      String          @unique
+  serial_number_id String?
+  product_id       String
+  customer_id      String
+  sale_id          String
+  warranty_type    String          @default("STANDARD") // STANDARD, INVERTER_5YR, BATTERY_10YR, PANEL_PERFORMANCE_25YR, PANEL_PRODUCT_12YR
+  start_date       DateTime        @default(now())
+  end_date         DateTime
+  duration_months  Int             @default(12)
+  status           String          @default("ACTIVE") // ACTIVE, EXPIRED, VOID, CLAIMED
+  terms            String?
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+
+  serial_number    SerialNumber?   @relation(fields: [serial_number_id], references: [id])
+  claims           WarrantyClaim[]
+}
+
+model WarrantyClaim {
+  id                    String    @id @default(uuid())
+  claim_no              String    @unique
+  warranty_id           String
+  customer_id           String
+  serial_number_id      String
+  original_invoice_no   String?
+  complaint             String
+  claim_type            String    @default("REPAIR") // REPAIR, REPLACEMENT, INSPECTION
+  assigned_technician   String?
+  diagnosis             String?
+  repair_details        String?
+  parts_used            String?
+  replacement_serial_no String?
+  service_cost          Float     @default(0)
+  warranty_cost         Float     @default(0)
+  status                String    @default("RECEIVED") // RECEIVED, INSPECTING, APPROVED, REJECTED, RESOLVED, CLOSED
+  resolution            String?
+  resolution_date       DateTime?
+  internal_notes        String?
+  customer_remarks      String?
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  warranty              Warranty  @relation(fields: [warranty_id], references: [id])
+}
+
+model Expense {
+  id             String   @id @default(uuid())
+  expense_no     String   @unique
+  category       String   // RENT, SALARIES, FUEL, TRANSPORT, INSTALLATION_LABOR, MARKETING, UTILITIES, MAINTENANCE, OFFICE, OTHER
+  amount         Float
+  branch_id      String?
+  project_id     String?
+  payment_method String   @default("CASH") // CASH, BANK_TRANSFER, ONLINE
+  expense_date   DateTime @default(now())
+  paid_to        String?
+  description    String?
+  receipt_url    String?
+  created_by     String?
+  created_at     DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  user_id     String?
+  action      String   // CREATE, UPDATE, DELETE, LOGIN, SYNC
+  entity      String
+  entity_id   String?
+  branch_id   String?
+  ip_address  String?
+  old_data    String?  // JSON
+  new_data    String?  // JSON
+  created_at  DateTime @default(now())
+}
+
+model SyncQueue {
+  id               String    @id @default(uuid())
+  client_uuid      String    @unique
+  client_branch_id String?
+  device_id        String?
+  entity           String
+  operation        String    // INSERT, UPDATE, DELETE
+  payload          String    // JSON payload
+  status           String    @default("PENDING") // PENDING, SYNCED, FAILED, CONFLICT
+  attempts         Int       @default(0)
+  error_message    String?
+  client_timestamp DateTime
+  synced_at        DateTime?
+  created_at       DateTime  @default(now())
+}
