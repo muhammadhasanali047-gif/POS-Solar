@@ -59,15 +59,44 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     const totalReceivables = customers.reduce((acc, c) => acc + c.outstanding_balance, 0);
     const customerCount = customers.length;
 
-    // 6. Inventory Valuation & Count
-    const inventories = await prisma.inventory.findMany({
-      include: { product: true, variant: true },
+    // 6. Products & Inventory Valuation & Count
+    const products = await prisma.product.findMany({
+      include: {
+        inventories: true,
+        category: true,
+        brand: true,
+      },
     });
-    const totalStockQuantity = inventories.reduce((acc, i) => acc + i.quantity, 0);
-    const totalInventoryValuation = inventories.reduce((acc, i) => acc + i.quantity * i.avg_cost, 0);
+
+    let totalStockQuantity = 0;
+    let totalInventoryValuation = 0;
+    const allStockItems: any[] = [];
+
+    for (const p of products) {
+      const stock = p.inventories.reduce((acc, inv) => acc + inv.quantity, 0);
+      const val = p.inventories.reduce((acc, inv) => acc + inv.quantity * inv.avg_cost, 0);
+      totalStockQuantity += stock;
+      totalInventoryValuation += val;
+
+      const minAlert = p.min_stock_alert ?? 5;
+      allStockItems.push({
+        id: p.id,
+        productId: p.id,
+        name: p.name,
+        categoryName: p.category?.name || 'General',
+        brandName: p.brand?.name || 'Solar',
+        modelNumber: p.model_number || 'Standard',
+        purchasePrice: p.purchase_price || 0,
+        salePrice: p.sale_price || 0,
+        currentQuantity: stock,
+        minAlert: minAlert,
+        isLow: stock <= minAlert,
+        isZero: stock === 0,
+      });
+    }
 
     // 7. Low Stock Alerts
-    const lowStockItems = inventories.filter((i) => i.quantity <= (i.product.min_stock_alert || 5));
+    const lowStockItems = allStockItems.filter((i) => i.isLow);
 
     // 8. Active Warranties & Claims
     const activeWarrantiesCount = await prisma.warranty.count({ where: { status: 'ACTIVE' } });
@@ -185,19 +214,28 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         totalStockQuantity,
         totalInventoryValuation,
         lowStockCount: lowStockItems.length,
+        outOfStockCount: allStockItems.filter((i) => i.isZero).length,
+        availableStockCount: allStockItems.filter((i) => i.currentQuantity > 0).length,
+        totalProductsCount: allStockItems.length,
         activeWarrantiesCount,
         pendingClaimsCount,
         activeInstallationsCount,
         unassignedJobsCount: urgentAlerts.length,
       },
       urgentAlerts,
-      lowStockItems: lowStockItems.slice(0, 6).map((i) => ({
+      lowStockItems: lowStockItems.slice(0, 10).map((i) => ({
         id: i.id,
-        name: i.product.name,
-        sku: i.variant?.sku || 'N/A',
-        currentQuantity: i.quantity,
-        minAlert: i.product.min_stock_alert,
+        productId: i.productId,
+        name: i.name,
+        category: i.categoryName,
+        brand: i.brandName,
+        modelNumber: i.modelNumber,
+        sku: i.modelNumber || 'N/A',
+        currentQuantity: i.currentQuantity,
+        minAlert: i.minAlert,
+        purchasePrice: i.purchasePrice,
       })),
+      allStockItems,
       topSellingProducts,
       salesTrend: monthlyTrend,
     });
