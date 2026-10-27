@@ -71,6 +71,63 @@ export const getProductById = async (req: Request, res: Response) => {
   }
 };
 
+async function resolveOrCreateCategoryId(input: string): Promise<string> {
+  if (!input || !input.trim()) throw new Error('Category is required');
+  const trimmed = input.trim();
+
+  // Try finding by ID
+  const byId = await prisma.category.findUnique({ where: { id: trimmed } });
+  if (byId) return byId.id;
+
+  // Try finding by Name
+  const byName = await prisma.category.findFirst({
+    where: { name: { equals: trimmed } },
+  });
+  if (byName) return byName.id;
+
+  // Create new category
+  const slug =
+    trimmed
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '') || `cat-${Date.now()}`;
+
+  const newCat = await prisma.category.create({
+    data: {
+      name: trimmed,
+      slug,
+      is_active: true,
+    },
+  });
+  FirebaseService.syncCategory(newCat).catch(() => {});
+  return newCat.id;
+}
+
+async function resolveOrCreateBrandId(input: string): Promise<string> {
+  if (!input || !input.trim()) throw new Error('Brand is required');
+  const trimmed = input.trim();
+
+  // Try finding by ID
+  const byId = await prisma.brand.findUnique({ where: { id: trimmed } });
+  if (byId) return byId.id;
+
+  // Try finding by Name
+  const byName = await prisma.brand.findFirst({
+    where: { name: { equals: trimmed } },
+  });
+  if (byName) return byName.id;
+
+  // Create new brand
+  const newBrand = await prisma.brand.create({
+    data: {
+      name: trimmed,
+      is_active: true,
+    },
+  });
+  FirebaseService.syncBrand(newBrand).catch(() => {});
+  return newBrand.id;
+}
+
 export const createProduct = async (req: Request, res: Response) => {
   try {
     const {
@@ -90,11 +147,14 @@ export const createProduct = async (req: Request, res: Response) => {
       return sendError(res, 'Name, category, and brand are required fields', 400);
     }
 
+    const resolvedCategoryId = await resolveOrCreateCategoryId(category_id);
+    const resolvedBrandId = await resolveOrCreateBrandId(brand_id);
+
     const product = await prisma.product.create({
       data: {
         name,
-        category_id,
-        brand_id,
+        category_id: resolvedCategoryId,
+        brand_id: resolvedBrandId,
         model_number,
         description,
         is_serialized: Boolean(is_serialized),
@@ -161,6 +221,13 @@ export const updateProduct = async (req: Request, res: Response) => {
     if (updateData.sale_price !== undefined) updateData.sale_price = Number(updateData.sale_price);
     if (updateData.min_stock_alert !== undefined) updateData.min_stock_alert = Number(updateData.min_stock_alert);
     if (updateData.is_serialized !== undefined) updateData.is_serialized = Boolean(updateData.is_serialized);
+
+    if (updateData.category_id) {
+      updateData.category_id = await resolveOrCreateCategoryId(updateData.category_id);
+    }
+    if (updateData.brand_id) {
+      updateData.brand_id = await resolveOrCreateBrandId(updateData.brand_id);
+    }
 
     const updated = await prisma.product.update({
       where: { id },

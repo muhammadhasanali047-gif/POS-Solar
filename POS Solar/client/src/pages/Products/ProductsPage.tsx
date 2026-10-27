@@ -6,6 +6,7 @@ import { DataTable, Column } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Badge } from '../../components/ui/Badge';
+import { CreatableSelect } from '../../components/ui/CreatableSelect';
 import { Product, Category, Brand } from '../../types';
 
 import { useAuthStore } from '../../stores/authStore';
@@ -134,6 +135,8 @@ export const ProductsPage: React.FC = () => {
         loadData();
         // reset
         setName('');
+        setCategoryId('');
+        setBrandId('');
         setModelNumber('');
         setDescription('');
       }
@@ -655,28 +658,29 @@ export const ProductsPage: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Category *</label>
-              <select
-                required
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full mt-1 p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl"
-              >
-                <option value="">-- Choose Category --</option>
-                {sortedCategories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <CreatableSelect
+              label="Category"
+              required
+              value={categoryId}
+              onChange={(val) => setCategoryId(val)}
+              options={sortedCategories.map((c) => ({ id: c.id, name: c.name }))}
+              placeholder="-- Choose or Type Category --"
+            />
 
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Brand *</label>
-                {isAdmin && (
+            <CreatableSelect
+              label="Brand"
+              required
+              value={brandId}
+              onChange={(val) => setBrandId(val)}
+              options={brands.map((b) => ({
+                id: b.id,
+                name: b.name,
+                subtitle: b.country ? `(${b.country})` : undefined,
+              }))}
+              placeholder="-- Choose or Type Brand --"
+              actionButton={
+                isAdmin && (
                   <button
                     type="button"
                     onClick={() => handleOpenManageBrands()}
@@ -685,22 +689,9 @@ export const ProductsPage: React.FC = () => {
                     <Edit3 className="w-3 h-3" />
                     <span>Manage Brands</span>
                   </button>
-                )}
-              </div>
-              <select
-                required
-                value={brandId}
-                onChange={(e) => setBrandId(e.target.value)}
-                className="w-full mt-1 p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl"
-              >
-                <option value="">-- Choose Brand --</option>
-                {brands.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} {b.country ? `(${b.country})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+                )
+              }
+            />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -789,27 +780,28 @@ export const ProductsPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Category *</label>
-              <select
-                required
-                value={editCategoryId}
-                onChange={(e) => setEditCategoryId(e.target.value)}
-                className="w-full mt-1 p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl"
-              >
-                <option value="">-- Choose Category --</option>
-                {sortedCategories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CreatableSelect
+              label="Category"
+              required
+              value={editCategoryId}
+              onChange={(val) => setEditCategoryId(val)}
+              options={sortedCategories.map((c) => ({ id: c.id, name: c.name }))}
+              placeholder="-- Choose or Type Category --"
+            />
 
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Brand *</label>
-                {isAdmin && (
+            <CreatableSelect
+              label="Brand"
+              required
+              value={editBrandId}
+              onChange={(val) => setEditBrandId(val)}
+              options={brands.map((b) => ({
+                id: b.id,
+                name: b.name,
+                subtitle: b.country ? `(${b.country})` : undefined,
+              }))}
+              placeholder="-- Choose or Type Brand --"
+              actionButton={
+                isAdmin && (
                   <button
                     type="button"
                     onClick={() => handleOpenManageBrands()}
@@ -818,22 +810,9 @@ export const ProductsPage: React.FC = () => {
                     <Edit3 className="w-3 h-3" />
                     <span>Manage Brands</span>
                   </button>
-                )}
-              </div>
-              <select
-                required
-                value={editBrandId}
-                onChange={(e) => setEditBrandId(e.target.value)}
-                className="w-full mt-1 p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl"
-              >
-                <option value="">-- Choose Brand --</option>
-                {brands.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} {b.country ? `(${b.country})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+                )
+              }
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
