@@ -18,6 +18,7 @@ import { Modal } from '../ui/Modal';
 import { Badge } from '../ui/Badge';
 import { Customer } from '../../types';
 import { usePrinterStore } from '../../stores/printerStore';
+import { PaymentMethodSelect } from '../ui/PaymentMethodSelect';
 
 interface CustomerLedgerModalProps {
   isOpen: boolean;
@@ -223,17 +224,11 @@ export const CustomerLedgerModal: React.FC<CustomerLedgerModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-gray-800 dark:text-gray-200 block mb-1">Payment Mode</label>
-                  <select
+                  <PaymentMethodSelect
+                    label="Payment Mode"
                     value={payMethod}
-                    onChange={(e) => setPayMethod(e.target.value)}
-                    className="w-full p-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl font-bold"
-                  >
-                    <option value="CASH">Cash</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="CHEQUE">Cheque</option>
-                    <option value="ONLINE">Online Transfer / JazzCash</option>
-                  </select>
+                    onChange={(val) => setPayMethod(val)}
+                  />
                 </div>
 
                 <div>

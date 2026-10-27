@@ -219,7 +219,7 @@ export interface Payment {
   sale_id: string;
   customer_id: string;
   amount: number;
-  payment_method: 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'ONLINE';
+  payment_method: string;
   transaction_ref?: string | null;
   payment_date: string;
   received_by?: string | null;

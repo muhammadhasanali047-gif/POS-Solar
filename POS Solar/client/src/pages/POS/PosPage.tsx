@@ -23,6 +23,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { usePrinterStore, PrintDocumentData } from '../../stores/printerStore';
 import { useAuthStore } from '../../stores/authStore';
 import { PrintableDocument } from '../../components/print/PrintableDocument';
+import { PaymentMethodSelect } from '../../components/ui/PaymentMethodSelect';
 
 const CATEGORY_ORDER = [
   'Accessories & Protection',
@@ -618,17 +619,10 @@ export const PosPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-black text-gray-900 dark:text-white block mb-1">Payment Method</label>
-                  <select
+                  <PaymentMethodSelect
                     value={cart.payment_method}
-                    onChange={(e: any) => cart.setPaymentMethod(e.target.value)}
-                    className="w-full p-2 bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg text-xs font-black text-gray-900 dark:text-white focus:outline-none focus:border-solar-500"
-                  >
-                    <option value="CASH">Cash</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                    <option value="CHEQUE">Cheque</option>
-                    <option value="ONLINE">Online</option>
-                  </select>
+                    onChange={(val) => cart.setPaymentMethod(val)}
+                  />
                 </div>
               </div>
 

@@ -10,6 +10,7 @@ export interface CreatableSelectOption {
 interface CreatableSelectProps {
   label?: string;
   required?: boolean;
+  disabled?: boolean;
   value: string; // Could be an option ID or a custom string name
   onChange: (value: string, selectedOption?: CreatableSelectOption) => void;
   options: CreatableSelectOption[];
@@ -21,6 +22,7 @@ interface CreatableSelectProps {
 export const CreatableSelect: React.FC<CreatableSelectProps> = ({
   label,
   required,
+  disabled = false,
   value,
   onChange,
   options,
@@ -149,22 +151,33 @@ export const CreatableSelect: React.FC<CreatableSelectProps> = ({
         <input
           ref={inputRef}
           type="text"
+          disabled={disabled}
           required={required && !value}
           value={inputText}
           placeholder={placeholder}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => {
+            if (!disabled) setIsOpen(true);
+          }}
           onChange={(e) => {
+            if (disabled) return;
             setInputText(e.target.value);
             setIsOpen(true);
             setHighlightedIndex(-1);
           }}
-          onKeyDown={handleKeyDown}
-          className="w-full p-2.5 pr-14 text-xs font-medium bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-xs"
+          onKeyDown={(e) => {
+            if (disabled) return;
+            handleKeyDown(e);
+          }}
+          className={`w-full p-2.5 pr-14 text-xs font-medium rounded-xl border transition-all shadow-xs ${
+            disabled
+              ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-slate-700 cursor-not-allowed select-none'
+              : 'bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500'
+          }`}
         />
 
         {/* Right Action Icons (Clear + Dropdown Chevron) */}
         <div className="absolute right-2 flex items-center gap-1">
-          {inputText && (
+          {!disabled && inputText && (
             <button
               type="button"
               onClick={handleClear}
@@ -175,22 +188,24 @@ export const CreatableSelect: React.FC<CreatableSelectProps> = ({
               <X className="w-3.5 h-3.5" />
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              setIsOpen(!isOpen);
-              if (!isOpen && inputRef.current) inputRef.current.focus();
-            }}
-            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md"
-            title="Toggle dropdown"
-            tabIndex={-1}
-          >
-            <ChevronDown
-              className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                isOpen ? 'rotate-180 text-emerald-600' : ''
-              }`}
-            />
-          </button>
+          {!disabled && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(!isOpen);
+                if (!isOpen && inputRef.current) inputRef.current.focus();
+              }}
+              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md"
+              title="Toggle dropdown"
+              tabIndex={-1}
+            >
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                  isOpen ? 'rotate-180 text-emerald-600' : ''
+                }`}
+              />
+            </button>
+          )}
         </div>
       </div>
 

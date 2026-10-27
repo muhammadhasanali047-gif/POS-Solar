@@ -31,6 +31,7 @@ import { PrinterSettingsModal } from '../../components/print/PrinterSettingsModa
 import { PrintableDocument } from '../../components/print/PrintableDocument';
 import { Customer, Product, Category, Warehouse } from '../../types';
 import { CustomerLedgerModal } from '../../components/customers/CustomerLedgerModal';
+import { PaymentMethodSelect } from '../../components/ui/PaymentMethodSelect';
 
 type WorkflowStep = 'inventory' | 'customer' | 'quotation' | 'invoice' | 'payment';
 
@@ -1351,18 +1352,11 @@ export const QuickWorkflowPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="font-black text-gray-900 dark:text-white block mb-1">
-                      Payment Mode
-                    </label>
-                    <select
+                    <PaymentMethodSelect
+                      label="Payment Mode"
                       value={invoicePaymentMethod}
-                      onChange={(e) => setInvoicePaymentMethod(e.target.value)}
-                      className="w-full p-2.5 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl font-bold text-gray-900 dark:text-white focus:outline-none focus:border-solar-500"
-                    >
-                      <option value="CASH">Cash</option>
-                      <option value="BANK_TRANSFER">Bank Transfer</option>
-                      <option value="CHEQUE">Cheque</option>
-                    </select>
+                      onChange={(val) => setInvoicePaymentMethod(val)}
+                    />
                   </div>
                 </div>
               </div>
@@ -1522,19 +1516,11 @@ export const QuickWorkflowPage: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">
-                        Payment Mode
-                      </label>
-                      <select
+                      <PaymentMethodSelect
+                        label="Payment Mode"
                         value={payOtherMethod}
-                        onChange={(e) => setPayOtherMethod(e.target.value)}
-                        className="w-full p-2.5 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl font-medium"
-                      >
-                        <option value="CASH">Cash</option>
-                        <option value="BANK_TRANSFER">Bank Transfer</option>
-                        <option value="CHEQUE">Cheque</option>
-                        <option value="ONLINE">Online Slip</option>
-                      </select>
+                        onChange={(val) => setPayOtherMethod(val)}
+                      />
                     </div>
 
                     <div>

@@ -17,6 +17,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Badge } from '../../components/ui/Badge';
 import { Quotation, Customer, Product, SolarPackage } from '../../types';
 import { CreatableSelect } from '../../components/ui/CreatableSelect';
+import { PaymentMethodSelect } from '../../components/ui/PaymentMethodSelect';
 import { usePrinterStore } from '../../stores/printerStore';
 import { PrintableDocument } from '../../components/print/PrintableDocument';
 
@@ -634,19 +635,10 @@ export const QuotationsPage: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="font-semibold text-gray-700 dark:text-gray-300">Payment Method</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full mt-1 p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl"
-                >
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
-                  <option value="CASH">Cash</option>
-                  <option value="CHEQUE">Cheque</option>
-                  <option value="ONLINE">Online Transfer</option>
-                </select>
-              </div>
+              <PaymentMethodSelect
+                value={paymentMethod}
+                onChange={(val) => setPaymentMethod(val)}
+              />
             </div>
 
             <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl text-[11px] text-amber-800 dark:text-amber-300">

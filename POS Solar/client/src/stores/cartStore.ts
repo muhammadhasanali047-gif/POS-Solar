@@ -20,7 +20,7 @@ interface CartState {
   installation_charges: number;
   transport_charges: number;
   paid_amount: number;
-  payment_method: 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'ONLINE';
+  payment_method: string;
   system_capacity_kw: number;
   notes: string;
 
@@ -38,7 +38,7 @@ interface CartState {
   setInstallationCharges: (val: number) => void;
   setTransportCharges: (val: number) => void;
   setPaidAmount: (val: number) => void;
-  setPaymentMethod: (method: 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'ONLINE') => void;
+  setPaymentMethod: (method: string) => void;
   setSystemCapacityKw: (kw: number) => void;
   setNotes: (notes: string) => void;
   resetCart: () => void;

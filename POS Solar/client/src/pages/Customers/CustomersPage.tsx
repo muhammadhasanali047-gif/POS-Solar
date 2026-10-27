@@ -25,6 +25,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Badge } from '../../components/ui/Badge';
 import { Customer } from '../../types';
 import { usePrinterStore } from '../../stores/printerStore';
+import { PaymentMethodSelect } from '../../components/ui/PaymentMethodSelect';
 
 export const CustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -391,19 +392,11 @@ export const CustomersPage: React.FC = () => {
               />
             </div>
 
-            <div>
-              <label className="font-semibold text-gray-700 dark:text-gray-300">Payment Mode</label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full mt-1 p-2 bg-gray-50 dark:bg-slate-950 border rounded-xl"
-              >
-                <option value="BANK_TRANSFER">Bank Transfer</option>
-                <option value="CASH">Cash</option>
-                <option value="CHEQUE">Cheque</option>
-                <option value="ONLINE">Online Transfer</option>
-              </select>
-            </div>
+            <PaymentMethodSelect
+              label="Payment Mode"
+              value={paymentMethod}
+              onChange={(val) => setPaymentMethod(val)}
+            />
 
             <div>
               <label className="font-semibold text-gray-700 dark:text-gray-300">Bank Reference / Cheque #</label>

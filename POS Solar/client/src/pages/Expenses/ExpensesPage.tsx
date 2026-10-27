@@ -7,6 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { Modal } from '../../components/ui/Modal';
 import { Badge } from '../../components/ui/Badge';
 import { Expense } from '../../types';
+import { PaymentMethodSelect } from '../../components/ui/PaymentMethodSelect';
 
 export const ExpensesPage: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -210,18 +211,11 @@ export const ExpensesPage: React.FC = () => {
                 className="w-full mt-1 p-2 bg-gray-50 dark:bg-slate-950 border rounded-xl font-bold text-rose-600"
               />
             </div>
-            <div>
-              <label className="font-semibold text-gray-700 dark:text-gray-300">Payment Mode</label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full mt-1 p-2 bg-gray-50 dark:bg-slate-950 border rounded-xl"
-              >
-                <option value="CASH">Cash</option>
-                <option value="BANK_TRANSFER">Bank Transfer</option>
-                <option value="ONLINE">Online Transfer</option>
-              </select>
-            </div>
+            <PaymentMethodSelect
+              label="Payment Mode"
+              value={paymentMethod}
+              onChange={(val) => setPaymentMethod(val)}
+            />
           </div>
 
           <div>
