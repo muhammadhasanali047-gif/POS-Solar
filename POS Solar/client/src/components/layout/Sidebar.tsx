@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../context/ThemeContext';
+import { useAccessStore } from '../../stores/accessStore';
 import { PrinterSettingsModal } from '../print/PrinterSettingsModal';
 
 export type NavItemKey =
@@ -45,7 +46,8 @@ export type NavItemKey =
   | 'expenses'
   | 'dealers'
   | 'reports'
-  | 'settings';
+  | 'settings'
+  | 'access';
 
 interface SidebarProps {
   currentTab: NavItemKey;
@@ -79,8 +81,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
+  const { isTabAllowed, fetchPermissions } = useAccessStore();
   const [showPrinterModal, setShowPrinterModal] = useState(false);
   const role = user?.role || 'MANAGER';
+
+  useEffect(() => {
+    fetchPermissions();
+  }, [fetchPermissions]);
 
   const getRoleBadgeColor = () => {
     switch (user?.role) {
@@ -158,7 +165,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'admin',
       title: 'Admin',
-      items: [{ key: 'settings', label: 'System & Users', icon: Settings }],
+      items: [
+        { key: 'settings', label: 'System & Users', icon: Settings },
+        { key: 'access', label: 'Access Control', icon: ShieldCheck, badge: 'Role' },
+      ],
     },
   ];
 
@@ -169,28 +179,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [currentTab, onSelectTab]);
 
-  // Auto-redirect if manager is on restricted admin tab
+  // Auto-redirect if user's currentTab is not allowed by role permissions
   useEffect(() => {
-    if (role === 'MANAGER' && currentTab === 'settings') {
-      onSelectTab('dashboard');
+    if (!isTabAllowed(currentTab, role)) {
+      if (isTabAllowed('dashboard', role)) {
+        onSelectTab('dashboard');
+      } else if (isTabAllowed('quick-flow', role)) {
+        onSelectTab('quick-flow');
+      } else if (isTabAllowed('pos', role)) {
+        onSelectTab('pos');
+      }
     }
-  }, [role, currentTab, onSelectTab]);
+  }, [currentTab, role, isTabAllowed, onSelectTab]);
 
-  // Filter sections and items based on role
+  // Filter sections and items based on role permissions
   const filteredSections: NavSectionConfig[] = rawSections
     .map((section) => {
-      let filteredItems: NavItemConfig[] = [];
-
-      if (role === 'MANAGER') {
-        // Manager sees all operational sections except system administration
-        if (section.id !== 'admin') {
-          filteredItems = section.items;
-        }
-      } else {
-        // CEO & Admin see all sections including system administration
-        filteredItems = section.items;
-      }
-
+      const filteredItems = section.items.filter((item) => isTabAllowed(item.key, role));
       return {
         ...section,
         items: filteredItems,
@@ -272,25 +277,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Navigation Links */}
         <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-3 custom-scrollbar">
-          {/* Always Visible: Dashboard button */}
-          <div>
-            <button
-              type="button"
-              onClick={() => handleNavSelect('dashboard')}
-              className={`w-full group flex items-center px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all relative cursor-pointer ${
-                currentTab === 'dashboard'
-                  ? 'bg-solar-600 text-white shadow-sm font-semibold'
-                  : 'text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-800/80 hover:text-black dark:hover:text-white'
-              }`}
-              title="Dashboard"
-            >
-              {isCollapsed ? (
-                <LayoutDashboard className="w-4 h-4 mx-auto" />
-              ) : (
-                <span className="truncate">Dashboard</span>
-              )}
-            </button>
-          </div>
+          {/* Dashboard button (if permitted) */}
+          {isTabAllowed('dashboard', role) && (
+            <div>
+              <button
+                type="button"
+                onClick={() => handleNavSelect('dashboard')}
+                className={`w-full group flex items-center px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all relative cursor-pointer ${
+                  currentTab === 'dashboard'
+                    ? 'bg-solar-600 text-white shadow-sm font-semibold'
+                    : 'text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-800/80 hover:text-black dark:hover:text-white'
+                }`}
+                title="Dashboard"
+              >
+                {isCollapsed ? (
+                  <LayoutDashboard className="w-4 h-4 mx-auto" />
+                ) : (
+                  <span className="truncate">Dashboard</span>
+                )}
+              </button>
+            </div>
+          )}
 
           {/* 5 Collapsible Sections */}
           {filteredSections.map((section) => {

@@ -21,25 +21,32 @@ import { ExpensesPage } from './pages/Expenses/ExpensesPage';
 import { DealersPage } from './pages/Dealers/DealersPage';
 import { ReportsPage } from './pages/Reports/ReportsPage';
 import { SettingsPage } from './pages/Settings/SettingsPage';
+import { AccessPage } from './pages/Access/AccessPage';
+import { useAccessStore } from './stores/accessStore';
 
 export const App: React.FC = () => {
   const { isAuthenticated, user } = useAuthStore();
+  const { isTabAllowed, fetchPermissions } = useAccessStore();
   const [currentTab, setCurrentTab] = useState<NavItemKey>('dashboard');
 
-  // Enforce role guards if user role changes
   useEffect(() => {
-    if (['expenses', 'dealers', 'reports'].includes(currentTab)) {
-      setCurrentTab('dashboard');
-    } else if (user?.role === 'CEO') {
-      if (currentTab === 'settings') {
+    if (isAuthenticated) {
+      fetchPermissions();
+    }
+  }, [isAuthenticated, fetchPermissions]);
+
+  // Enforce dynamic role access guards
+  useEffect(() => {
+    if (!isTabAllowed(currentTab, user?.role)) {
+      if (isTabAllowed('dashboard', user?.role)) {
         setCurrentTab('dashboard');
-      }
-    } else if (user?.role === 'MANAGER') {
-      if (currentTab === 'settings') {
-        setCurrentTab('dashboard');
+      } else if (isTabAllowed('quick-flow', user?.role)) {
+        setCurrentTab('quick-flow');
+      } else if (isTabAllowed('pos', user?.role)) {
+        setCurrentTab('pos');
       }
     }
-  }, [user, currentTab]);
+  }, [user, currentTab, isTabAllowed]);
 
   if (!isAuthenticated) {
     return <LoginPage />;
@@ -81,6 +88,8 @@ export const App: React.FC = () => {
         return <ReportsPage />;
       case 'settings':
         return <SettingsPage />;
+      case 'access':
+        return <AccessPage />;
       default:
         return <DashboardPage />;
     }

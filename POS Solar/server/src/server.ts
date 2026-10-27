@@ -24,6 +24,7 @@ import expenseRoutes from './routes/expenseRoutes';
 import dealerRoutes from './routes/dealerRoutes';
 import reportRoutes from './routes/reportRoutes';
 import syncRoutes from './routes/syncRoutes';
+import roleRoutes from './routes/roleRoutes';
 
 const app = express();
 
@@ -56,6 +57,7 @@ app.use(`${API_PREFIX}/expenses`, expenseRoutes);
 app.use(`${API_PREFIX}/dealers`, dealerRoutes);
 app.use(`${API_PREFIX}/reports`, reportRoutes);
 app.use(`${API_PREFIX}/sync`, syncRoutes);
+app.use(`${API_PREFIX}/roles`, roleRoutes);
 
 // Root & Health Endpoints
 app.get('/', (req, res) => {
