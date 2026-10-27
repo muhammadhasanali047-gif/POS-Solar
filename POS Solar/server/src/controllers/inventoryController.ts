@@ -88,11 +88,48 @@ export const adjustStock = async (req: Request, res: Response) => {
       return sendError(res, 'warehouse_id, product_id, type, and quantity are required', 400);
     }
 
+    let resolvedProductId = product_id;
+    let prod = await prisma.product.findUnique({ where: { id: product_id } });
+    if (!prod) {
+      // Check if product_id is actually a product name
+      prod = await prisma.product.findFirst({
+        where: { name: { equals: product_id.trim() } },
+      });
+      if (prod) {
+        resolvedProductId = prod.id;
+      } else {
+        // Auto-create product with first category and brand or create defaults
+        let defaultCat = await prisma.category.findFirst();
+        if (!defaultCat) {
+          defaultCat = await prisma.category.create({
+            data: { name: 'Solar Panels', slug: 'solar-panels', is_active: true }
+          });
+        }
+        let defaultBrand = await prisma.brand.findFirst();
+        if (!defaultBrand) {
+          defaultBrand = await prisma.brand.create({
+            data: { name: 'General', is_active: true }
+          });
+        }
+        const newProd = await prisma.product.create({
+          data: {
+            name: product_id.trim(),
+            category_id: defaultCat.id,
+            brand_id: defaultBrand.id,
+            purchase_price: Number(unit_cost) || 0,
+            sale_price: (Number(unit_cost) || 0) * 1.15,
+            is_active: true,
+          }
+        });
+        resolvedProductId = newProd.id;
+      }
+    }
+
     const qty = Number(quantity);
     let inv = await prisma.inventory.findFirst({
       where: {
         warehouse_id,
-        product_id,
+        product_id: resolvedProductId,
         variant_id: variant_id || null,
       },
     });
@@ -122,7 +159,7 @@ export const adjustStock = async (req: Request, res: Response) => {
       inv = await prisma.inventory.create({
         data: {
           warehouse_id,
-          product_id,
+          product_id: resolvedProductId,
           variant_id: variant_id || null,
           quantity: afterQty,
           available_qty: afterQty,
@@ -137,7 +174,7 @@ export const adjustStock = async (req: Request, res: Response) => {
       data: {
         transaction_no: txnNo,
         warehouse_id,
-        product_id,
+        product_id: resolvedProductId,
         variant_id: variant_id || null,
         type,
         quantity: qty,

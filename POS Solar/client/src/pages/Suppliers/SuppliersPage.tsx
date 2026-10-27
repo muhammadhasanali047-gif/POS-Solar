@@ -6,6 +6,7 @@ import { DataTable, Column } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Badge } from '../../components/ui/Badge';
+import { CreatableSelect } from '../../components/ui/CreatableSelect';
 import { Supplier, Purchase, Product, Warehouse, Category } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -692,25 +693,22 @@ export const SuppliersPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                  Product Item *
-                </label>
-                <select
+                <CreatableSelect
+                  label="Product Item"
+                  required
                   value={selectedPOProduct}
-                  onChange={(e) => {
-                    setSelectedPOProduct(e.target.value);
-                    const p = products.find((prod) => prod.id === e.target.value);
+                  onChange={(val) => {
+                    setSelectedPOProduct(val);
+                    const p = products.find((prod) => prod.id === val || prod.name.toLowerCase() === val.toLowerCase());
                     if (p) setAddCost(p.purchase_price || 0);
                   }}
-                  className="w-full p-2.5 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold"
-                >
-                  <option value="">-- Choose Product --</option>
-                  {filteredPOProducts.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} — Cost: {formatCurrency(p.purchase_price)} {p.is_serialized ? '★ Serialized' : ''}
-                    </option>
-                  ))}
-                </select>
+                  options={filteredPOProducts.map((p) => ({
+                    id: p.id,
+                    name: p.name,
+                    subtitle: `Cost: ${formatCurrency(p.purchase_price)} ${p.is_serialized ? '• Serialized' : ''}`,
+                  }))}
+                  placeholder="-- Choose or Type Product --"
+                />
               </div>
             </div>
 

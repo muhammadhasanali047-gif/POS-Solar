@@ -16,6 +16,7 @@ import { DataTable, Column } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { Badge } from '../../components/ui/Badge';
 import { Quotation, Customer, Product, SolarPackage } from '../../types';
+import { CreatableSelect } from '../../components/ui/CreatableSelect';
 import { usePrinterStore } from '../../stores/printerStore';
 import { PrintableDocument } from '../../components/print/PrintableDocument';
 
@@ -66,6 +67,47 @@ export const QuotationsPage: React.FC = () => {
   const [newCustAddress, setNewCustAddress] = useState('');
   const [newCustCnic, setNewCustCnic] = useState('');
   const [isSavingCust, setIsSavingCust] = useState(false);
+
+  // Quick Build Solar Package Modal
+  const [showBuildPackageModal, setShowBuildPackageModal] = useState(false);
+  const [buildPkgName, setBuildPkgName] = useState('');
+  const [buildPkgCapacity, setBuildPkgCapacity] = useState<number>(5);
+  const [buildPkgType, setBuildPkgType] = useState('HYBRID');
+  const [buildPkgPrice, setBuildPkgPrice] = useState<number>(0);
+  const [buildPkgDesc, setBuildPkgDesc] = useState('');
+  const [isSavingPkg, setIsSavingPkg] = useState(false);
+
+  const handleBuildAndApplyPackage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!buildPkgName.trim()) return alert('Package name is required');
+    setIsSavingPkg(true);
+    try {
+      const res = await api.post('/packages', {
+        name: buildPkgName.trim(),
+        capacity_kw: buildPkgCapacity,
+        package_type: buildPkgType,
+        base_price: buildPkgPrice,
+        description: buildPkgDesc,
+      });
+
+      if (res.data?.success) {
+        const createdPkg = res.data.data;
+        const pkgRes = await api.get('/packages');
+        if (pkgRes.data?.success) setPackages(pkgRes.data.data);
+
+        setPackageId(createdPkg.id);
+        setCapacityKw(createdPkg.capacity_kw);
+        setShowBuildPackageModal(false);
+        setBuildPkgName('');
+        setBuildPkgDesc('');
+        setBuildPkgPrice(0);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to build package');
+    } finally {
+      setIsSavingPkg(false);
+    }
+  };
 
   const handleQuickAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -357,46 +399,64 @@ export const QuotationsPage: React.FC = () => {
         <form onSubmit={handleCreateQuotation} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-black text-gray-900 dark:text-white">Select Customer *</label>
-                <button
-                  type="button"
-                  onClick={() => setShowQuickCustModal(true)}
-                  className="text-xs font-bold text-solar-600 hover:text-solar-700 dark:text-solar-400 flex items-center gap-1 cursor-pointer transition-colors"
-                  title="Add new customer / person"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>+ Add New Person</span>
-                </button>
-              </div>
-              <select
+              <CreatableSelect
+                label="Select Customer"
                 required
                 value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                className="w-full p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl font-bold text-gray-900 dark:text-white"
-              >
-                <option value="">-- Choose Customer --</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.phone})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setCustomerId(val)}
+                options={customers.map((c) => ({
+                  id: c.id,
+                  name: `${c.name} (${c.phone})`,
+                  subtitle: c.city ? `City: ${c.city}` : undefined,
+                }))}
+                placeholder="-- Choose or Type Customer --"
+                actionButton={
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickCustModal(true)}
+                    className="text-xs font-bold text-solar-600 hover:text-solar-700 dark:text-solar-400 flex items-center gap-1 cursor-pointer transition-colors"
+                    title="Add new customer / person"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>+ Add New Person</span>
+                  </button>
+                }
+              />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                Load Solar Package Template
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Load Solar Package Template
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowBuildPackageModal(true)}
+                  className="text-xs font-bold text-solar-600 hover:text-solar-700 dark:text-solar-400 flex items-center gap-1 cursor-pointer transition-colors"
+                  title="Build new solar package"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Build Package</span>
+                </button>
+              </div>
               <select
                 value={packageId}
-                onChange={(e) => handleSelectPackage(e.target.value)}
-                className="w-full mt-1 p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl font-medium text-solar-600"
+                onChange={(e) => {
+                  if (e.target.value === '__build_new__') {
+                    setShowBuildPackageModal(true);
+                    return;
+                  }
+                  handleSelectPackage(e.target.value);
+                }}
+                className="w-full p-2.5 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl font-medium text-solar-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               >
                 <option value="">-- Custom Component Build --</option>
+                <option value="__build_new__" className="font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950">
+                  ➕ + Build & Add New Package Template...
+                </option>
                 {packages.map((pkg) => (
                   <option key={pkg.id} value={pkg.id}>
-                    ⚡ {pkg.name} ({pkg.capacity_kw} kW)
+                    ⚡ {pkg.name} ({pkg.capacity_kw} kW) — {formatCurrency(pkg.base_price)}
                   </option>
                 ))}
               </select>
@@ -696,6 +756,105 @@ export const QuotationsPage: React.FC = () => {
               className="px-5 py-2 bg-solar-600 hover:bg-solar-700 text-white rounded-xl font-bold shadow-xs cursor-pointer disabled:opacity-50"
             >
               {isSavingCust ? 'Adding...' : 'Save & Select Customer'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Quick Build Solar Package Modal */}
+      <Modal
+        isOpen={showBuildPackageModal}
+        onClose={() => setShowBuildPackageModal(false)}
+        title="Build New Solar Package Template"
+        maxWidth="md"
+      >
+        <form onSubmit={handleBuildAndApplyPackage} className="space-y-3.5">
+          <div>
+            <label className="text-xs font-bold text-gray-900 dark:text-white block mb-1">
+              Package System Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={buildPkgName}
+              onChange={(e) => setBuildPkgName(e.target.value)}
+              placeholder="e.g. 5kW Hybrid Standard Package (Longi + GoodWe)"
+              className="w-full p-2.5 bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-gray-900 dark:text-white block mb-1">
+                Capacity (kW) *
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                min="1"
+                required
+                value={buildPkgCapacity}
+                onChange={(e) => setBuildPkgCapacity(Number(e.target.value))}
+                className="w-full p-2.5 bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-900 dark:text-white block mb-1">
+                System Architecture
+              </label>
+              <select
+                value={buildPkgType}
+                onChange={(e) => setBuildPkgType(e.target.value)}
+                className="w-full p-2.5 bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-bold"
+              >
+                <option value="ON_GRID">On-Grid (Net Metering)</option>
+                <option value="HYBRID">Hybrid (Battery Backup)</option>
+                <option value="OFF_GRID">Off-Grid (Standalone)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-gray-900 dark:text-white block mb-1">
+              Base / Package Estimate Price (Rs.)
+            </label>
+            <input
+              type="number"
+              value={buildPkgPrice}
+              onChange={(e) => setBuildPkgPrice(Number(e.target.value))}
+              placeholder="550000"
+              className="w-full p-2.5 bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-bold"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-gray-900 dark:text-white block mb-1">
+              Description / Included Components
+            </label>
+            <textarea
+              rows={2}
+              value={buildPkgDesc}
+              onChange={(e) => setBuildPkgDesc(e.target.value)}
+              placeholder="e.g. 8x 585W Panels, 5kW Hybrid Inverter, AC/DC DB, L2 Structure, Pure Copper Cables"
+              className="w-full p-2.5 bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-medium"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => setShowBuildPackageModal(false)}
+              className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-xs hover:bg-gray-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingPkg}
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md disabled:opacity-50"
+            >
+              {isSavingPkg ? 'Building...' : 'Save & Select into Quotation'}
             </button>
           </div>
         </form>

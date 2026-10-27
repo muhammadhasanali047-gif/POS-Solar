@@ -12,6 +12,7 @@ import { useAuthStore } from '../../stores/authStore';
 export const PackagesPage: React.FC = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'CEO';
+  const canManage = isAdmin || user?.role === 'MANAGER';
 
   const [packages, setPackages] = useState<SolarPackage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -131,7 +132,7 @@ export const PackagesPage: React.FC = () => {
             Solar Packages
           </h2>
         </div>
-        {isAdmin && (
+        {canManage && (
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
@@ -162,6 +163,16 @@ export const PackagesPage: React.FC = () => {
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
                   Configure turnkey 5kW, 10kW or custom system packages with panels, inverters, and mounting kits.
                 </p>
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(true)}
+                    className="mt-4 px-5 py-2.5 bg-solar-600 hover:bg-solar-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Build First Solar Package</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>

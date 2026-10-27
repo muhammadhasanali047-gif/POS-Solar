@@ -6,6 +6,7 @@ import { DataTable, Column } from '../../components/ui/DataTable';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Badge } from '../../components/ui/Badge';
+import { CreatableSelect } from '../../components/ui/CreatableSelect';
 import { InventoryItem, Warehouse, Product, Category } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -348,57 +349,43 @@ export const InventoryPage: React.FC = () => {
       >
         <form onSubmit={handleAdjustStock} className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Category Filter</label>
-              <select
-                value={adjustCategoryId}
-                onChange={(e) => {
-                  const catVal = e.target.value;
-                  setAdjustCategoryId(catVal);
-                  if (catVal) {
-                    const currP = products.find((pr) => pr.id === selectedProductId);
-                    if (currP && currP.category_id !== catVal && currP.category?.id !== catVal && currP.category?.name !== catVal) {
-                      setSelectedProductId('');
-                    }
+            <CreatableSelect
+              label="Category Filter"
+              value={adjustCategoryId}
+              onChange={(val) => {
+                setAdjustCategoryId(val);
+                if (val) {
+                  const currP = products.find((pr) => pr.id === selectedProductId);
+                  if (currP && currP.category_id !== val && currP.category?.id !== val && currP.category?.name !== val) {
+                    setSelectedProductId('');
                   }
-                }}
-                className="w-full mt-1 p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl font-medium"
-              >
-                <option value="">-- All Categories ({categories.length}) --</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+                }
+              }}
+              options={categories.map((c) => ({ id: c.id, name: c.name }))}
+              placeholder="-- All Categories / Type Category --"
+            />
 
-            <div>
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Product *</label>
-              <select
-                required
-                value={selectedProductId}
-                onChange={(e) => {
-                  const prodId = e.target.value;
-                  setSelectedProductId(prodId);
-                  const p = products.find((pr) => pr.id === prodId);
-                  if (p) {
-                    setUnitCost(p.purchase_price);
-                    if (p.category_id || p.category?.id) {
-                      setAdjustCategoryId(p.category_id || p.category?.id || '');
-                    }
+            <CreatableSelect
+              label="Product"
+              required
+              value={selectedProductId}
+              onChange={(val) => {
+                setSelectedProductId(val);
+                const p = products.find((pr) => pr.id === val || pr.name.toLowerCase() === val.toLowerCase());
+                if (p) {
+                  setUnitCost(p.purchase_price);
+                  if (p.category_id || p.category?.id) {
+                    setAdjustCategoryId(p.category_id || p.category?.id || '');
                   }
-                }}
-                className="w-full mt-1 p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl font-medium"
-              >
-                <option value="">-- Choose Product ({filteredAdjustProducts.length}) --</option>
-                {filteredAdjustProducts.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.model_number || 'Standard'}) {p.brand?.name ? `• ${p.brand.name}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+                }
+              }}
+              options={filteredAdjustProducts.map((p) => ({
+                id: p.id,
+                name: p.name,
+                subtitle: `${p.model_number ? `Model: ${p.model_number} • ` : ''}${p.brand?.name ? `Brand: ${p.brand.name} • ` : ''}Cost: Rs. ${p.purchase_price}`,
+              }))}
+              placeholder="-- Choose or Type Product Name --"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
