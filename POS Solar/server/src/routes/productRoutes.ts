@@ -4,6 +4,7 @@ import {
   getProductById,
   createProduct,
   updateProduct,
+  updateProductStock,
   deleteProduct,
   getCategories,
   createCategory,
@@ -32,6 +33,7 @@ router.delete('/brands/:id', authenticate, requireAdmin, deleteBrand);
 router.get('/', authenticate, getProducts);
 router.get('/:id', authenticate, getProductById);
 router.post('/', authenticate, requireManagerOrAdmin, createProduct);
+router.post('/:id/stock', authenticate, requireManagerOrAdmin, updateProductStock);
 router.put('/:id', authenticate, requireAdmin, updateProduct);
 router.delete('/:id', authenticate, requireAdmin, deleteProduct);
 

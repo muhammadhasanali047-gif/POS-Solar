@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Package, Plus, Search, Filter, Layers, Barcode, ShieldCheck, Edit3, Trash2 } from 'lucide-react';
+import { Package, Plus, Search, Filter, Layers, Barcode, ShieldCheck, Edit3, Trash2, Boxes } from 'lucide-react';
 import api from '../../lib/api';
 import { formatCurrency } from '../../lib/utils';
 import { DataTable, Column } from '../../components/ui/DataTable';
@@ -49,6 +49,7 @@ export const ProductsPage: React.FC = () => {
   const [modelNumber, setModelNumber] = useState('');
   const [purchasePrice, setPurchasePrice] = useState<number>(0);
   const [salePrice, setSalePrice] = useState<number>(0);
+  const [initialStock, setInitialStock] = useState<number>(0);
   const [isSerialized, setIsSerialized] = useState(false);
   const [minAlert, setMinAlert] = useState(5);
   const [description, setDescription] = useState('');
@@ -62,9 +63,18 @@ export const ProductsPage: React.FC = () => {
   const [editModelNumber, setEditModelNumber] = useState('');
   const [editPurchasePrice, setEditPurchasePrice] = useState<number>(0);
   const [editSalePrice, setEditSalePrice] = useState<number>(0);
+  const [editStock, setEditStock] = useState<number>(0);
   const [editIsSerialized, setEditIsSerialized] = useState(false);
   const [editMinAlert, setEditMinAlert] = useState(5);
   const [editDescription, setEditDescription] = useState('');
+
+  // Quick Stock Adjustment Modal
+  const [stockModalProduct, setStockModalProduct] = useState<Product | null>(null);
+  const [quickStockMode, setQuickStockMode] = useState<'set' | 'add'>('set');
+  const [quickStockQty, setQuickStockQty] = useState<number>(10);
+  const [quickStockCost, setQuickStockCost] = useState<number>(0);
+  const [quickStockReason, setQuickStockReason] = useState<string>('Stock Update');
+  const [isSavingQuickStock, setIsSavingQuickStock] = useState(false);
 
   // Delete Product Dialog
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
@@ -125,6 +135,7 @@ export const ProductsPage: React.FC = () => {
         model_number: modelNumber,
         purchase_price: purchasePrice,
         sale_price: salePrice,
+        initial_stock: Number(initialStock) || 0,
         is_serialized: isSerialized,
         min_stock_alert: minAlert,
         description,
@@ -138,6 +149,7 @@ export const ProductsPage: React.FC = () => {
         setCategoryId('');
         setBrandId('');
         setModelNumber('');
+        setInitialStock(0);
         setDescription('');
       }
     } catch (err: any) {
@@ -153,6 +165,7 @@ export const ProductsPage: React.FC = () => {
     setEditModelNumber(p.model_number || '');
     setEditPurchasePrice(p.purchase_price || 0);
     setEditSalePrice(p.sale_price || 0);
+    setEditStock(p.totalStock ?? 0);
     setEditIsSerialized(Boolean(p.is_serialized));
     setEditMinAlert(p.min_stock_alert ?? 5);
     setEditDescription(p.description || '');
@@ -170,6 +183,7 @@ export const ProductsPage: React.FC = () => {
         model_number: editModelNumber,
         purchase_price: editPurchasePrice,
         sale_price: editSalePrice,
+        current_stock: Number(editStock) || 0,
         is_serialized: editIsSerialized,
         min_stock_alert: editMinAlert,
         description: editDescription,
@@ -182,6 +196,28 @@ export const ProductsPage: React.FC = () => {
       }
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to update product');
+    }
+  };
+
+  const handleSaveQuickStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stockModalProduct) return;
+    setIsSavingQuickStock(true);
+    try {
+      const res = await api.post(`/products/${stockModalProduct.id}/stock`, {
+        quantity: Number(quickStockQty),
+        mode: quickStockMode,
+        unit_cost: Number(quickStockCost),
+        reason: quickStockReason,
+      });
+      if (res.data?.success) {
+        setStockModalProduct(null);
+        await loadData();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to update stock');
+    } finally {
+      setIsSavingQuickStock(false);
     }
   };
 
@@ -432,9 +468,26 @@ export const ProductsPage: React.FC = () => {
         const qty = p.totalStock ?? 0;
         const isLow = qty <= p.min_stock_alert;
         return (
-          <span className={`font-black text-xs ${isLow ? 'text-rose-600' : 'text-emerald-700 dark:text-emerald-400'}`}>
-            {qty} units {isLow && '⚠️'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`font-black text-xs ${isLow ? 'text-rose-600' : 'text-emerald-700 dark:text-emerald-400'}`}>
+              {qty} units {isLow && '⚠️'}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setStockModalProduct(p);
+                setQuickStockMode('set');
+                setQuickStockQty(p.totalStock ?? 0);
+                setQuickStockCost(p.purchase_price ?? 0);
+                setQuickStockReason('Manual Stock Adjustment');
+              }}
+              className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-solar-50 hover:bg-solar-100 dark:bg-solar-950/60 dark:hover:bg-solar-900/60 text-solar-700 dark:text-solar-400 border border-solar-200 dark:border-solar-800 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+              title="Set or Add Stock for this product"
+            >
+              <Boxes className="w-3 h-3" />
+              <span>+ Set Stock</span>
+            </button>
+          </div>
         );
       },
     },
@@ -445,6 +498,20 @@ export const ProductsPage: React.FC = () => {
             header: 'Actions',
             render: (p: Product) => (
               <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  title="Set / Adjust Stock"
+                  onClick={() => {
+                    setStockModalProduct(p);
+                    setQuickStockMode('set');
+                    setQuickStockQty(p.totalStock ?? 0);
+                    setQuickStockCost(p.purchase_price ?? 0);
+                    setQuickStockReason('Manual Stock Adjustment');
+                  }}
+                  className="p-1.5 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Boxes className="w-3.5 h-3.5" />
+                </button>
                 <button
                   type="button"
                   title="Edit Product (Admin Only)"
@@ -725,7 +792,34 @@ export const ProductsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center justify-between">
+                <span>Initial Opening Stock (Units)</span>
+                <span className="text-[10px] text-emerald-600 font-bold">Auto Inward to Warehouse</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={initialStock}
+                onChange={(e) => setInitialStock(Number(e.target.value))}
+                placeholder="0"
+                className="w-full mt-1 p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl font-bold text-emerald-600"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Min Stock Alert Level</label>
+              <input
+                type="number"
+                min="0"
+                value={minAlert}
+                onChange={(e) => setMinAlert(Number(e.target.value))}
+                className="w-full mt-1 p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 pt-1">
             <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300 cursor-pointer">
               <input
                 type="checkbox"
@@ -847,6 +941,19 @@ export const ProductsPage: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center justify-between">
+                <span>Current Stock Balance (Units)</span>
+                <span className="text-[10px] text-emerald-600 font-bold">⚡ Live Stock</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={editStock}
+                onChange={(e) => setEditStock(Number(e.target.value))}
+                className="w-full mt-1 p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl font-black text-emerald-600"
+              />
+            </div>
+            <div>
               <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Min Stock Alert Level</label>
               <input
                 type="number"
@@ -855,17 +962,18 @@ export const ProductsPage: React.FC = () => {
                 className="w-full mt-1 p-2 text-xs bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl"
               />
             </div>
-            <div className="flex items-center pt-5">
-              <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={editIsSerialized}
-                  onChange={(e) => setEditIsSerialized(e.target.checked)}
-                  className="w-4 h-4 text-solar-600 rounded"
-                />
-                <span>Track Individual Serial Numbers</span>
-              </label>
-            </div>
+          </div>
+
+          <div className="flex items-center pt-2">
+            <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={editIsSerialized}
+                onChange={(e) => setEditIsSerialized(e.target.checked)}
+                className="w-4 h-4 text-solar-600 rounded"
+              />
+              <span>Track Individual Serial Numbers</span>
+            </label>
           </div>
 
           <div>
@@ -885,6 +993,129 @@ export const ProductsPage: React.FC = () => {
             Update Product Details
           </button>
         </form>
+      </Modal>
+
+      {/* Quick Stock Adjustment Modal */}
+      <Modal
+        isOpen={Boolean(stockModalProduct)}
+        onClose={() => setStockModalProduct(null)}
+        title="⚡ Set / Adjust Product Stock Balance"
+        maxWidth="md"
+      >
+        {stockModalProduct && (
+          <form onSubmit={handleSaveQuickStock} className="space-y-4 text-xs">
+            {/* Product Summary Header */}
+            <div className="p-3 bg-solar-50 dark:bg-solar-950/40 border border-solar-200 dark:border-solar-800/60 rounded-xl flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white text-sm">
+                  {stockModalProduct.name}
+                </h4>
+                <p className="text-[11px] text-gray-500">
+                  Model: {stockModalProduct.model_number || 'N/A'} • Cost: {formatCurrency(stockModalProduct.purchase_price)}
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-gray-500 uppercase font-bold block">Current Stock</span>
+                <span
+                  className={`text-sm font-black ${
+                    (stockModalProduct.totalStock ?? 0) <= stockModalProduct.min_stock_alert
+                      ? 'text-rose-600'
+                      : 'text-emerald-600'
+                  }`}
+                >
+                  {stockModalProduct.totalStock ?? 0} units
+                </span>
+              </div>
+            </div>
+
+            {/* Mode selection: Set Exact vs Add */}
+            <div>
+              <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Adjustment Action</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQuickStockMode('set')}
+                  className={`p-2.5 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer ${
+                    quickStockMode === 'set'
+                      ? 'bg-solar-600 text-white border-solar-600 shadow-xs'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:border-solar-400'
+                  }`}
+                >
+                  = Set Exact Balance
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuickStockMode('add')}
+                  className={`p-2.5 rounded-xl border text-center font-bold text-xs transition-all cursor-pointer ${
+                    quickStockMode === 'add'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                      : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:border-emerald-400'
+                  }`}
+                >
+                  + Add More Units
+                </button>
+              </div>
+            </div>
+
+            {/* Quantity Input */}
+            <div>
+              <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">
+                {quickStockMode === 'set' ? 'New Total Stock Quantity (Units) *' : 'Units to Add to Stock *'}
+              </label>
+              <input
+                type="number"
+                min="0"
+                required
+                value={quickStockQty}
+                onChange={(e) => setQuickStockQty(Number(e.target.value))}
+                className="w-full p-2.5 bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-xl font-black text-sm text-solar-600 dark:text-solar-400 focus:outline-none focus:border-solar-500"
+              />
+              <p className="text-[10px] text-gray-500 mt-1">
+                {quickStockMode === 'set'
+                  ? `Stock will directly become ${quickStockQty} units.`
+                  : `New total balance will be ${(stockModalProduct.totalStock ?? 0) + Number(quickStockQty)} units.`}
+              </p>
+            </div>
+
+            {/* Unit Purchase Cost & Reason */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-gray-700 dark:text-gray-300 block mb-1">
+                  Purchase / Unit Cost (Rs.)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={quickStockCost}
+                  onChange={(e) => setQuickStockCost(Number(e.target.value))}
+                  className="w-full p-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-gray-700 dark:text-gray-300 block mb-1">
+                  Note / Reason
+                </label>
+                <input
+                  type="text"
+                  value={quickStockReason}
+                  onChange={(e) => setQuickStockReason(e.target.value)}
+                  placeholder="e.g. Stock Inward / Fresh Delivery"
+                  className="w-full p-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSavingQuickStock}
+              className="w-full py-3 bg-solar-600 hover:bg-solar-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <Boxes className="w-4 h-4" />
+              <span>{isSavingQuickStock ? 'Updating Stock...' : 'Save & Update Stock Balance'}</span>
+            </button>
+          </form>
+        )}
       </Modal>
 
       {/* Delete Product Confirmation (Admin Only) */}

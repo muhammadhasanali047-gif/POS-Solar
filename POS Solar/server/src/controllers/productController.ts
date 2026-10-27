@@ -185,6 +185,43 @@ export const createProduct = async (req: Request, res: Response) => {
       },
     });
 
+    // If initial stock was provided, automatically seed into warehouse inventory
+    if (req.body.initial_stock !== undefined && Number(req.body.initial_stock) > 0) {
+      const wh = req.body.warehouse_id
+        ? await prisma.warehouse.findUnique({ where: { id: req.body.warehouse_id } })
+        : await prisma.warehouse.findFirst({ where: { is_active: true } });
+
+      if (wh) {
+        const stockQty = Number(req.body.initial_stock);
+        const cost = Number(purchase_price) || 0;
+        await prisma.inventory.create({
+          data: {
+            warehouse_id: wh.id,
+            product_id: product.id,
+            quantity: stockQty,
+            available_qty: stockQty,
+            avg_cost: cost,
+          },
+        });
+        const txnNo = `TXN-INIT-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+        await prisma.inventoryTransaction.create({
+          data: {
+            transaction_no: txnNo,
+            warehouse_id: wh.id,
+            product_id: product.id,
+            type: 'PURCHASE_IN',
+            quantity: stockQty,
+            before_qty: 0,
+            after_qty: stockQty,
+            unit_cost: cost,
+            reference_type: 'INITIAL_STOCK',
+            notes: 'Initial opening stock registered during product creation',
+            created_by: req.user?.id || null,
+          },
+        });
+      }
+    }
+
     await logAudit({
       userId: req.user?.id,
       action: 'CREATE',
@@ -208,6 +245,10 @@ export const updateProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const updateData: any = { ...req.body };
+    const stockToSet = updateData.current_stock !== undefined ? Number(updateData.current_stock) : undefined;
+    delete updateData.current_stock;
+    delete updateData.initial_stock;
+    delete updateData.warehouse_id;
     delete updateData.variants; // handled separately if needed
     delete updateData.id;
     delete updateData.category;
@@ -235,6 +276,71 @@ export const updateProduct = async (req: Request, res: Response) => {
       include: { category: true, brand: true, variants: true },
     });
 
+    // If current_stock was explicitly edited
+    if (stockToSet !== undefined && !isNaN(stockToSet)) {
+      const wh = await prisma.warehouse.findFirst({ where: { is_active: true } });
+      if (wh) {
+        const existingInv = await prisma.inventory.findFirst({
+          where: { product_id: id, warehouse_id: wh.id },
+        });
+        const cost = Number(updateData.purchase_price) || 0;
+        if (existingInv) {
+          const diff = stockToSet - existingInv.quantity;
+          const currentQty = existingInv.quantity;
+          await prisma.inventory.update({
+            where: { id: existingInv.id },
+            data: {
+              quantity: Math.max(0, stockToSet),
+              available_qty: Math.max(0, stockToSet - existingInv.reserved_qty),
+              avg_cost: cost || existingInv.avg_cost,
+            },
+          });
+          const txnNo = `TXN-CORR-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+          await prisma.inventoryTransaction.create({
+            data: {
+              transaction_no: txnNo,
+              warehouse_id: wh.id,
+              product_id: id,
+              type: diff >= 0 ? 'ADJUSTMENT_ADD' : 'ADJUSTMENT_SUB',
+              quantity: Math.abs(diff),
+              before_qty: currentQty,
+              after_qty: stockToSet,
+              unit_cost: cost || existingInv.avg_cost,
+              reference_type: 'MANUAL_EDIT',
+              notes: 'Stock updated via Product edit',
+              created_by: req.user?.id || null,
+            },
+          });
+        } else if (stockToSet > 0) {
+          await prisma.inventory.create({
+            data: {
+              warehouse_id: wh.id,
+              product_id: id,
+              quantity: stockToSet,
+              available_qty: stockToSet,
+              avg_cost: cost,
+            },
+          });
+          const txnNo = `TXN-INIT-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+          await prisma.inventoryTransaction.create({
+            data: {
+              transaction_no: txnNo,
+              warehouse_id: wh.id,
+              product_id: id,
+              type: 'PURCHASE_IN',
+              quantity: stockToSet,
+              before_qty: 0,
+              after_qty: stockToSet,
+              unit_cost: cost,
+              reference_type: 'INITIAL_STOCK',
+              notes: 'Initial stock added via Product edit',
+              created_by: req.user?.id || null,
+            },
+          });
+        }
+      }
+    }
+
     await logAudit({
       userId: req.user?.id,
       action: 'UPDATE',
@@ -249,6 +355,106 @@ export const updateProduct = async (req: Request, res: Response) => {
     });
 
     return sendSuccess(res, updated, 'Product updated successfully');
+  } catch (err: any) {
+    return sendError(res, err.message, 500);
+  }
+};
+
+export const updateProductStock = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { quantity, mode = 'set', reason, warehouse_id, unit_cost } = req.body;
+
+    if (quantity === undefined || isNaN(Number(quantity))) {
+      return sendError(res, 'Quantity is required', 400);
+    }
+
+    const qty = Number(quantity);
+    const prod = await prisma.product.findUnique({ where: { id } });
+    if (!prod) {
+      return sendError(res, 'Product not found', 404);
+    }
+
+    const wh = warehouse_id
+      ? await prisma.warehouse.findUnique({ where: { id: warehouse_id } })
+      : await prisma.warehouse.findFirst({ where: { is_active: true } });
+
+    if (!wh) {
+      return sendError(res, 'No active warehouse found', 400);
+    }
+
+    const cost = unit_cost !== undefined ? Number(unit_cost) : prod.purchase_price || 0;
+
+    const existingInv = await prisma.inventory.findFirst({
+      where: { product_id: id, warehouse_id: wh.id },
+    });
+
+    let newTotal = 0;
+    if (mode === 'add') {
+      const currentQty = existingInv?.quantity || 0;
+      newTotal = Math.max(0, currentQty + qty);
+    } else {
+      newTotal = Math.max(0, qty);
+    }
+
+    if (existingInv) {
+      const diff = newTotal - existingInv.quantity;
+      const currentQty = existingInv.quantity;
+      await prisma.inventory.update({
+        where: { id: existingInv.id },
+        data: {
+          quantity: newTotal,
+          available_qty: Math.max(0, newTotal - existingInv.reserved_qty),
+          avg_cost: cost || existingInv.avg_cost,
+        },
+      });
+
+      const txnNo = `TXN-STK-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+      await prisma.inventoryTransaction.create({
+        data: {
+          transaction_no: txnNo,
+          warehouse_id: wh.id,
+          product_id: id,
+          type: diff >= 0 ? 'ADJUSTMENT_ADD' : 'ADJUSTMENT_SUB',
+          quantity: Math.abs(diff),
+          before_qty: currentQty,
+          after_qty: newTotal,
+          unit_cost: cost || existingInv.avg_cost,
+          reference_type: 'MANUAL_EDIT',
+          notes: reason || (mode === 'add' ? `Added ${qty} units via Quick Stock` : `Stock set to ${newTotal} units`),
+          created_by: req.user?.id || null,
+        },
+      });
+    } else {
+      await prisma.inventory.create({
+        data: {
+          warehouse_id: wh.id,
+          product_id: id,
+          quantity: newTotal,
+          available_qty: newTotal,
+          avg_cost: cost,
+        },
+      });
+
+      const txnNo = `TXN-STK-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+      await prisma.inventoryTransaction.create({
+        data: {
+          transaction_no: txnNo,
+          warehouse_id: wh.id,
+          product_id: id,
+          type: 'PURCHASE_IN',
+          quantity: newTotal,
+          before_qty: 0,
+          after_qty: newTotal,
+          unit_cost: cost,
+          reference_type: 'INITIAL_STOCK',
+          notes: reason || `Initial stock created via Quick Stock: ${newTotal} units`,
+          created_by: req.user?.id || null,
+        },
+      });
+    }
+
+    return sendSuccess(res, { product_id: id, totalStock: newTotal }, 'Stock updated successfully');
   } catch (err: any) {
     return sendError(res, err.message, 500);
   }
