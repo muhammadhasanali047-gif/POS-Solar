@@ -58,16 +58,12 @@ export const LoginPage: React.FC = () => {
       <div className="relative z-10 w-full max-w-[420px] mx-auto bg-white rounded-2xl sm:rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.08)] border border-slate-200/80 p-5 sm:p-8 transition-all">
         {/* Header Branding */}
         <div className="flex flex-col items-center text-center mb-5 sm:mb-7">
-          <div className="p-2 sm:p-2.5 rounded-2xl bg-slate-50 border border-slate-100/90 shadow-sm mb-3">
+          <div className="p-2 sm:p-2.5 rounded-2xl bg-slate-50 border border-slate-100/90 shadow-sm">
             <img
               src="/ji-energies-logo.png"
               alt="J.I ENERGIES & ALP SOLAR"
               className="h-12 sm:h-14 w-auto object-contain"
             />
-          </div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70 shadow-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Authorised Sales & Service Center • Multan
           </div>
         </div>
 
