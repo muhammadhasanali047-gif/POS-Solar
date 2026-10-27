@@ -154,9 +154,9 @@ export const LoginPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setDemoAccount('CASHIER')}
-              className="px-2 py-1.5 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 text-[11px] font-bold hover:bg-blue-100 transition-colors"
+              className="px-2 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold hover:bg-emerald-100 transition-colors"
             >
-              Cashier
+              Staff (Counter)
             </button>
           </div>
           <p className="text-[10px] text-gray-400 mt-3">

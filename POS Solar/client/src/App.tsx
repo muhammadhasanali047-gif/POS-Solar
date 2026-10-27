@@ -28,16 +28,11 @@ export const App: React.FC = () => {
 
   // Enforce role guards if user role changes
   useEffect(() => {
+    const isExecutive = user?.role === 'ADMIN' || user?.role === 'CEO';
     if (['expenses', 'dealers', 'reports'].includes(currentTab)) {
       setCurrentTab('dashboard');
-    } else if (user?.role === 'CEO') {
-      if (currentTab === 'settings') {
-        setCurrentTab('dashboard');
-      }
-    } else if (user?.role === 'MANAGER') {
-      if (currentTab === 'settings') {
-        setCurrentTab('dashboard');
-      }
+    } else if (!isExecutive && currentTab === 'settings') {
+      setCurrentTab('dashboard');
     }
   }, [user, currentTab]);
 

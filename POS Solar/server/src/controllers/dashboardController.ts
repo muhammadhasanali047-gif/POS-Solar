@@ -168,22 +168,31 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       });
     }
 
+    const userRole = (req as any).user?.role || 'STAFF';
+    const isExecutive = userRole === 'ADMIN' || userRole === 'CEO';
+
     return sendSuccess(res, {
+      isExecutive,
       kpis: {
-        todaySales: todaySalesTotal,
-        monthlySales: monthlySalesTotal,
-        grossProfit: totalGrossProfit,
-        grossMarginPercent,
-        tradingNetProfit,
-        monthlyFixedOverhead,
-        variableOperatingExpenses,
-        dailyProratedOverhead,
-        netProfit: totalNetProfit,
-        totalExpenses,
-        totalReceivables,
+        // Financial metrics - only available to CEO & ADMIN
+        todaySales: isExecutive ? todaySalesTotal : null,
+        monthlySales: isExecutive ? monthlySalesTotal : null,
+        grossProfit: isExecutive ? totalGrossProfit : null,
+        grossMarginPercent: isExecutive ? grossMarginPercent : null,
+        tradingNetProfit: isExecutive ? tradingNetProfit : null,
+        monthlyFixedOverhead: isExecutive ? monthlyFixedOverhead : null,
+        variableOperatingExpenses: isExecutive ? variableOperatingExpenses : null,
+        dailyProratedOverhead: isExecutive ? dailyProratedOverhead : null,
+        netProfit: isExecutive ? totalNetProfit : null,
+        totalExpenses: isExecutive ? totalExpenses : null,
+        totalReceivables: isExecutive ? totalReceivables : null,
+        totalInventoryValuation: isExecutive ? totalInventoryValuation : null,
+
+        // Operational metrics - safe and visible to Staff
+        todayInvoicesCount: todaySales.length,
+        monthlyInvoicesCount: monthlySales.length,
         customerCount,
         totalStockQuantity,
-        totalInventoryValuation,
         lowStockCount: lowStockItems.length,
         activeWarrantiesCount,
         pendingClaimsCount,
@@ -198,8 +207,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         currentQuantity: i.quantity,
         minAlert: i.product.min_stock_alert,
       })),
-      topSellingProducts,
-      salesTrend: monthlyTrend,
+      topSellingProducts: isExecutive ? topSellingProducts : [],
+      salesTrend: isExecutive ? monthlyTrend : [],
     });
   } catch (err: any) {
     return sendError(res, err.message, 500);
