@@ -18,7 +18,7 @@ export const SettingsPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('Solar123!');
-  const [role, setRole] = useState<'ADMIN' | 'CEO' | 'MANAGER' | 'CASHIER'>('CASHIER');
+  const [role, setRole] = useState<'ADMIN' | 'CEO' | 'MANAGER'>('MANAGER');
 
   const { isOnline, isSyncing, pendingCount, triggerSync, checkHealth } = useSyncStore();
   const offlineQueue = getOfflineQueue();
@@ -348,10 +348,9 @@ export const SettingsPage: React.FC = () => {
               onChange={(e: any) => setRole(e.target.value)}
               className="w-full mt-1 p-2 bg-gray-50 dark:bg-slate-950 border rounded-xl font-bold"
             >
-              <option value="CASHIER">Sales / Counter Staff (Customers CRM, Quotations, POS, Inventory — Financial Overview Hidden)</option>
-              <option value="MANAGER">Store Manager (Operations, Stock, Customers, Quotes — Financial Overview Hidden)</option>
-              <option value="CEO">Executive CEO (Full Executive Overview, Total Revenue, Profits, All Access)</option>
-              <option value="ADMIN">System Administrator (Full Unrestricted Access)</option>
+              <option value="MANAGER">Manager (Inventory, Purchases, Sales/POS, Shared Dealers)</option>
+              <option value="CEO">CEO Portal (Executive Analytics & Shared Dealers)</option>
+              <option value="ADMIN">Administrator (Full Unrestricted Access)</option>
             </select>
           </div>
 

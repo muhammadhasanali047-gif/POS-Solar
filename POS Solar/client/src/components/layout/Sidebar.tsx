@@ -82,33 +82,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showPrinterModal, setShowPrinterModal] = useState(false);
   const role = user?.role || 'MANAGER';
 
-  const isExecutive = role === 'ADMIN' || role === 'CEO';
-
   const getRoleBadgeColor = () => {
     switch (user?.role) {
       case 'ADMIN':
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-300';
       case 'CEO':
         return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300';
-      case 'CASHIER':
-        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-300';
       case 'MANAGER':
       default:
         return 'bg-solar-100 text-solar-800 dark:bg-solar-900/40 dark:text-solar-300 border-solar-300';
-    }
-  };
-
-  const getRoleLabel = () => {
-    switch (user?.role) {
-      case 'ADMIN':
-        return 'Administrator';
-      case 'CEO':
-        return 'Executive CEO';
-      case 'CASHIER':
-        return 'Sales & Counter Staff';
-      case 'MANAGER':
-      default:
-        return 'Operations Staff';
     }
   };
 
@@ -187,29 +169,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [currentTab, onSelectTab]);
 
-  // Auto-redirect if user is on a restricted tab
+  // Auto-redirect if cashier is on a restricted tab
   useEffect(() => {
-    if (['expenses', 'dealers', 'reports'].includes(currentTab)) {
-      onSelectTab('dashboard');
-    } else if (!isExecutive && currentTab === 'settings') {
-      onSelectTab('dashboard');
+    if (role === 'CASHIER') {
+      const allowedCashierTabs = ['quick-flow', 'dashboard', 'pos', 'quotations', 'customers'];
+      if (!allowedCashierTabs.includes(currentTab)) {
+        onSelectTab('quick-flow');
+      }
     }
-  }, [isExecutive, currentTab, onSelectTab]);
+  }, [role, currentTab, onSelectTab]);
 
   // Filter sections and items based on role
   const filteredSections: NavSectionConfig[] = rawSections
     .map((section) => {
       let filteredItems: NavItemConfig[] = [];
 
-      if (!isExecutive) {
-        // Staff members (Cashier, Sales Staff, Operations) see all operational tools
-        // (Customer CRM, Quotations, POS, Packages, Catalog, Stock, Serials, Installations, Warranties)
-        // Only Admin settings are restricted
+      if (role === 'CASHIER') {
+        // Cashier sees Quick Flow, Sales & POS, Quotations, and Customers CRM
+        if (section.id === 'sales') {
+          filteredItems = section.items.filter((i) =>
+            ['quick-flow', 'pos', 'quotations', 'customers'].includes(i.key)
+          );
+        }
+      } else if (role === 'CEO') {
+        // CEO sees high-level operational sections
+        if (section.id !== 'admin') {
+          filteredItems = section.items;
+        }
+      } else if (role === 'MANAGER') {
+        // Manager sees all operational sections except system administration
         if (section.id !== 'admin') {
           filteredItems = section.items;
         }
       } else {
-        // CEO & Admin see everything including System Settings
+        // Admin sees everything
         filteredItems = section.items;
       }
 
@@ -304,27 +297,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ? 'bg-solar-600 text-white shadow-sm font-semibold'
                   : 'text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-800/80 hover:text-black dark:hover:text-white'
               }`}
-              title={isExecutive ? 'CEO Executive Overview' : 'Staff Operations Portal'}
+              title="Dashboard"
             >
               {isCollapsed ? (
                 <LayoutDashboard className="w-4 h-4 mx-auto" />
               ) : (
-                <div className="flex items-center justify-between w-full">
-                  <span className="truncate">
-                    {isExecutive ? 'Executive Overview' : 'Operations Portal'}
-                  </span>
-                  <span
-                    className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider ${
-                      currentTab === 'dashboard'
-                        ? 'bg-white/20 text-white'
-                        : isExecutive
-                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                        : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                    }`}
-                  >
-                    {isExecutive ? 'CEO' : 'Staff'}
-                  </span>
-                </div>
+                <span className="truncate">Dashboard</span>
               )}
             </button>
           </div>
@@ -476,7 +454,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </p>
                   <div className="flex items-center gap-1 mt-0.5">
                     <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${getRoleBadgeColor()}`}>
-                      {getRoleLabel()}
+                      {user?.role}
                     </span>
                   </div>
                 </div>
