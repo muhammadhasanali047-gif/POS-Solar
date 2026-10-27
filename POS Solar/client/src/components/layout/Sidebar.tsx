@@ -20,14 +20,9 @@ import {
   X,
   User as UserIcon,
   LogOut,
-  Printer,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
-import { useTheme } from '../../context/ThemeContext';
 import { useAccessStore } from '../../stores/accessStore';
-import { PrinterSettingsModal } from '../print/PrinterSettingsModal';
 
 export type NavItemKey =
   | 'quick-flow'
@@ -80,9 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user, logout } = useAuthStore();
-  const { theme, toggleTheme } = useTheme();
   const { isTabAllowed, fetchPermissions } = useAccessStore();
-  const [showPrinterModal, setShowPrinterModal] = useState(false);
   const role = user?.role || 'MANAGER';
 
   useEffect(() => {
@@ -373,63 +366,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             );
           })}
-
-          {/* Quick Utility Options Under Admin: Printer & Dark Theme */}
-          <div className="pt-2.5 mt-2 border-t border-gray-100 dark:border-slate-800 space-y-1">
-            <button
-              type="button"
-              onClick={() => setShowPrinterModal(true)}
-              className="group flex items-center px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all relative w-full cursor-pointer text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-800/80 hover:text-black dark:hover:text-white"
-              title="Connect Printer & Slip Settings"
-            >
-              {isCollapsed ? (
-                <Printer className="w-4 h-4 mx-auto text-gray-700 dark:text-gray-300 group-hover:text-solar-600" />
-              ) : (
-                <div className="flex-1 text-left flex items-center justify-between">
-                  <span className="truncate flex items-center gap-2">
-                    <Printer className="w-4 h-4 text-gray-700 dark:text-gray-300 group-hover:text-solar-600 shrink-0" />
-                    <span>Printer Settings</span>
-                  </span>
-                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 text-gray-900 dark:bg-slate-800 dark:text-white border border-gray-300 dark:border-slate-700 uppercase tracking-wider">
-                    SLIP
-                  </span>
-                </div>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="group flex items-center px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all relative w-full cursor-pointer text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-800/80 hover:text-black dark:hover:text-white"
-              title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
-            >
-              {isCollapsed ? (
-                theme === 'light' ? (
-                  <Moon className="w-4 h-4 mx-auto text-gray-700 dark:text-gray-300 group-hover:text-solar-600" />
-                ) : (
-                  <Sun className="w-4 h-4 mx-auto text-amber-400" />
-                )
-              ) : (
-                <div className="flex-1 text-left flex items-center justify-between">
-                  <span className="truncate flex items-center gap-2">
-                    {theme === 'light' ? (
-                      <Moon className="w-4 h-4 text-gray-700 dark:text-gray-300 group-hover:text-solar-600 shrink-0" />
-                    ) : (
-                      <Sun className="w-4 h-4 text-amber-400 shrink-0" />
-                    )}
-                    <span>{theme === 'light' ? 'Dark Theme' : 'Light Theme'}</span>
-                  </span>
-                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider border ${
-                    theme === 'dark'
-                      ? 'bg-amber-400/20 text-amber-400 border-amber-400/30'
-                      : 'bg-gray-100 text-gray-900 border-gray-300'
-                  }`}>
-                    {theme === 'dark' ? 'DARK' : 'LIGHT'}
-                  </span>
-                </div>
-              )}
-            </button>
-          </div>
         </nav>
 
         {/* User Profile & Logout Block (Directly under System & Users) */}
@@ -481,12 +417,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
         </div>
-
-        {/* Printer Connection & Settings Modal */}
-        <PrinterSettingsModal
-          isOpen={showPrinterModal}
-          onClose={() => setShowPrinterModal(false)}
-        />
       </aside>
     </>
   );
