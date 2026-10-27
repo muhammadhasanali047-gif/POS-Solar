@@ -26,6 +26,10 @@ export const SuppliersPage: React.FC = () => {
   const [supplierId, setSupplierId] = useState('');
   const [warehouseId, setWarehouseId] = useState('');
   const [poCategoryFilter, setPoCategoryFilter] = useState('');
+  const [selectedPOProduct, setSelectedPOProduct] = useState('');
+  const [addQty, setAddQty] = useState<number>(1);
+  const [addCost, setAddCost] = useState<number>(0);
+  const [isSavingPO, setIsSavingPO] = useState(false);
   const [items, setItems] = useState<any[]>([]);
   const [paidAmount, setPaidAmount] = useState<number>(0);
 
@@ -77,9 +81,20 @@ export const SuppliersPage: React.FC = () => {
         api.get('/products/categories'),
       ]);
 
-      if (supRes.data?.success) setSuppliers(supRes.data.data);
+      if (supRes.data?.success) {
+        setSuppliers(supRes.data.data);
+        if (supRes.data.data.length > 0) {
+          setSupplierId((prev) => prev || supRes.data.data[0].id);
+        }
+      }
       if (purRes.data?.success) setPurchases(purRes.data.data);
-      if (prodRes.data?.success) setProducts(prodRes.data.data);
+      if (prodRes.data?.success) {
+        setProducts(prodRes.data.data);
+        if (prodRes.data.data.length > 0) {
+          setSelectedPOProduct((prev) => prev || prodRes.data.data[0].id);
+          setAddCost((prev) => prev || prodRes.data.data[0].purchase_price || 0);
+        }
+      }
       if (catRes.data?.success) setCategories(catRes.data.data);
       if (whRes.data?.success) {
         setWarehouses(whRes.data.data);
@@ -106,14 +121,46 @@ export const SuppliersPage: React.FC = () => {
 
   const handleCreatePO = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supplierId) return alert('Please select a supplier');
-    if (items.length === 0) return alert('Please add at least one item to the purchase order');
+    const effectiveSupplierId = supplierId || (suppliers.length > 0 ? suppliers[0].id : '');
+    if (!effectiveSupplierId) {
+      return alert('Please select or create a supplier first');
+    }
+
+    let poItems = [...items];
+
+    // Auto-fallback: If user selected product in dropdown but didn't hit Add Item, auto-add it!
+    if (poItems.length === 0) {
+      const targetId = selectedPOProduct || filteredPOProducts[0]?.id;
+      if (targetId) {
+        const prod = products.find((p) => p.id === targetId);
+        if (prod) {
+          const isSerialized = Boolean(prod.is_serialized);
+          poItems = [
+            {
+              product_id: prod.id,
+              variant_id: prod.variants?.[0]?.id || null,
+              name: prod.name,
+              is_serialized: isSerialized,
+              quantity: addQty > 0 ? addQty : (isSerialized ? 1 : 10),
+              unit_cost: addCost > 0 ? addCost : (prod.purchase_price || 0),
+              serial_numbers: [],
+              serial_text: '',
+            },
+          ];
+          setItems(poItems);
+        }
+      }
+    }
+
+    if (poItems.length === 0) {
+      return alert('Please select a product and add it to the purchase order');
+    }
 
     // Validation for serialized items
     const globalSerials = new Set<string>();
 
-    for (let i = 0; i < items.length; i++) {
-      const it = items[i];
+    for (let i = 0; i < poItems.length; i++) {
+      const it = poItems[i];
       if (it.is_serialized) {
         const serials = it.serial_numbers || [];
         if (serials.length !== it.quantity) {
@@ -136,11 +183,12 @@ export const SuppliersPage: React.FC = () => {
       }
     }
 
+    setIsSavingPO(true);
     try {
       const res = await api.post('/purchases', {
-        supplier_id: supplierId,
-        warehouse_id: warehouseId,
-        items: items.map((it) => ({
+        supplier_id: effectiveSupplierId,
+        warehouse_id: warehouseId || (warehouses.length > 0 ? warehouses[0].id : null),
+        items: poItems.map((it) => ({
           product_id: it.product_id,
           variant_id: it.variant_id,
           quantity: it.quantity,
@@ -157,7 +205,7 @@ export const SuppliersPage: React.FC = () => {
             `Purchase Order saved into inventory!\n\n⚠️ Note: ${data.skipped_duplicates.length} serial number(s) were already registered in the system and were skipped:\n${data.skipped_duplicates.join(', ')}`
           );
         } else {
-          alert(res.data.message || 'Purchase Order completed and stock added to inventory');
+          alert(res.data.message || 'Purchase Order completed and stock added to inventory successfully!');
         }
         setShowPOModal(false);
         setItems([]);
@@ -165,6 +213,8 @@ export const SuppliersPage: React.FC = () => {
       }
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to create PO');
+    } finally {
+      setIsSavingPO(false);
     }
   };
 
@@ -293,23 +343,38 @@ export const SuppliersPage: React.FC = () => {
       .filter((s) => s.length > 0);
   };
 
-  const addItemToPO = (prodId: string) => {
-    const prod = products.find((p) => p.id === prodId);
+  const addItemToPO = (prodId?: string) => {
+    const targetId = prodId || selectedPOProduct || (filteredPOProducts.length > 0 ? filteredPOProducts[0].id : '');
+    if (!targetId) {
+      alert('Please choose a product to inward');
+      return;
+    }
+    const prod = products.find((p) => p.id === targetId);
     if (!prod) return;
     const isSerialized = Boolean(prod.is_serialized);
-    setItems([
-      ...items,
-      {
-        product_id: prod.id,
-        variant_id: prod.variants?.[0]?.id || null,
-        name: prod.name,
-        is_serialized: isSerialized,
-        quantity: isSerialized ? 1 : 10,
-        unit_cost: prod.purchase_price,
-        serial_numbers: [],
-        serial_text: '',
-      },
-    ]);
+    const qty = addQty > 0 ? addQty : (isSerialized ? 1 : 10);
+    const cost = addCost > 0 ? addCost : (prod.purchase_price || 0);
+
+    const existingIdx = items.findIndex((it) => it.product_id === prod.id);
+    if (existingIdx >= 0) {
+      const updated = [...items];
+      updated[existingIdx].quantity += qty;
+      setItems(updated);
+    } else {
+      setItems([
+        ...items,
+        {
+          product_id: prod.id,
+          variant_id: prod.variants?.[0]?.id || null,
+          name: prod.name,
+          is_serialized: isSerialized,
+          quantity: qty,
+          unit_cost: cost,
+          serial_numbers: [],
+          serial_text: '',
+        },
+      ]);
+    }
   };
 
   const removeItemFromPO = (index: number) => {
@@ -566,13 +631,26 @@ export const SuppliersPage: React.FC = () => {
         maxWidth="lg"
       >
         <form onSubmit={handleCreatePO} className="space-y-4 text-xs">
+          {/* Supplier Selector with Quick Add */}
           <div>
-            <label className="font-semibold text-gray-700 dark:text-gray-300">Supplier *</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-bold text-gray-800 dark:text-gray-200">
+                Supplier *
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowAddSupModal(true)}
+                className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ New Supplier</span>
+              </button>
+            </div>
             <select
               required
               value={supplierId}
               onChange={(e) => setSupplierId(e.target.value)}
-              className="w-full mt-1 p-2 bg-gray-50 dark:bg-slate-950 border rounded-xl"
+              className="w-full p-2.5 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl font-medium"
             >
               <option value="">-- Choose Supplier --</option>
               {suppliers.map((s) => (
@@ -583,14 +661,26 @@ export const SuppliersPage: React.FC = () => {
             </select>
           </div>
 
-          <div>
-            <label className="font-semibold text-gray-700 dark:text-gray-300 text-xs">Select Product to Inward</label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
-              <div className="sm:col-span-1">
+          {/* Product Inward Section */}
+          <div className="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-gray-900 dark:text-white text-xs">
+                Select Product to Inward
+              </span>
+              <span className="text-[11px] text-gray-500 font-medium">
+                {filteredPOProducts.length} Products Found
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                  Filter by Category
+                </label>
                 <select
                   value={poCategoryFilter}
                   onChange={(e) => setPoCategoryFilter(e.target.value)}
-                  className="w-full p-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium"
+                  className="w-full p-2.5 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium"
                 >
                   <option value="">-- All Categories ({categories.length}) --</option>
                   {categories.map((c) => (
@@ -600,26 +690,66 @@ export const SuppliersPage: React.FC = () => {
                   ))}
                 </select>
               </div>
-              <div className="sm:col-span-2 flex gap-2">
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                  Product Item *
+                </label>
                 <select
-                  id="poProductSelect"
-                  className="flex-1 p-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium"
+                  value={selectedPOProduct}
+                  onChange={(e) => {
+                    setSelectedPOProduct(e.target.value);
+                    const p = products.find((prod) => prod.id === e.target.value);
+                    if (p) setAddCost(p.purchase_price || 0);
+                  }}
+                  className="w-full p-2.5 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold"
                 >
+                  <option value="">-- Choose Product --</option>
                   {filteredPOProducts.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name} — Cost: {formatCurrency(p.purchase_price)} {p.is_serialized ? '★ Serialized' : ''}
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Inward Inputs & Big Add Button */}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 pt-2 border-t border-slate-200/70 dark:border-slate-800 items-end">
+              <div className="sm:col-span-3">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                  Quantity
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={addQty}
+                  onChange={(e) => setAddQty(Math.max(1, Number(e.target.value)))}
+                  className="w-full p-2 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold text-center"
+                />
+              </div>
+
+              <div className="sm:col-span-4">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                  Unit Cost (Rs.)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={addCost}
+                  onChange={(e) => setAddCost(Number(e.target.value))}
+                  className="w-full p-2 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold text-right"
+                />
+              </div>
+
+              <div className="sm:col-span-5">
                 <button
                   type="button"
-                  onClick={() => {
-                    const sel = (document.getElementById('poProductSelect') as HTMLSelectElement)?.value;
-                    if (sel) addItemToPO(sel);
-                  }}
-                  className="px-4 py-2 bg-solar-600 hover:bg-solar-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer whitespace-nowrap"
+                  onClick={() => addItemToPO()}
+                  className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
                 >
-                  + Add Item
+                  <Plus className="w-4 h-4" />
+                  <span>+ Add Product to List</span>
                 </button>
               </div>
             </div>
@@ -793,9 +923,20 @@ export const SuppliersPage: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full py-2.5 bg-solar-600 hover:bg-solar-700 text-white font-bold rounded-xl shadow-md cursor-pointer"
+            disabled={isSavingPO}
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold rounded-xl shadow-md cursor-pointer transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            Confirm PO & Inward Stock
+            {isSavingPO ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Saving Purchase & Updating Inventory...</span>
+              </>
+            ) : (
+              <>
+                <span>Confirm PO & Inward Stock</span>
+                <CheckCircle className="w-4 h-4" />
+              </>
+            )}
           </button>
         </form>
       </Modal>
