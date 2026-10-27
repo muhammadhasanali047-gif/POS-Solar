@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowRight, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, Lock, Mail, Eye, EyeOff, Crown, ShieldCheck } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 
 export const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('admin@solarpos.com');
+  const [email, setEmail] = useState('ceo@solarpos.com');
   const [password, setPassword] = useState('Solar123!');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,13 +41,56 @@ export const LoginPage: React.FC = () => {
       {/* Main Login Card */}
       <div className="relative z-10 w-full max-w-[420px] mx-auto bg-white rounded-2xl sm:rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.08)] border border-slate-200/80 p-5 sm:p-8 transition-all">
         {/* Header Branding */}
-        <div className="flex flex-col items-center text-center mb-5 sm:mb-7">
+        <div className="flex flex-col items-center text-center mb-5 sm:mb-6">
           <div className="p-2 sm:p-2.5 rounded-2xl bg-slate-50 border border-slate-100/90 shadow-sm">
             <img
               src="/ji-energies-logo.png"
               alt="J.I ENERGIES & ALP SOLAR"
               className="h-12 sm:h-14 w-auto object-contain"
             />
+          </div>
+        </div>
+
+        {/* Quick Role Fill: ONLY CEO & MANAGER */}
+        <div className="mb-4 sm:mb-5 bg-slate-50/80 border border-slate-200/70 rounded-2xl p-2.5">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Quick Account Fill
+            </span>
+            <span className="text-[10px] text-slate-400 font-medium">1-Tap Fill</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('ceo@solarpos.com');
+                setPassword('Solar123!');
+              }}
+              className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all shadow-xs ${
+                email === 'ceo@solarpos.com'
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-amber-500/25 shadow-md ring-2 ring-amber-400/40'
+                  : 'bg-white hover:bg-amber-50/80 text-amber-900 border-amber-200/80'
+              }`}
+            >
+              <Crown className="w-3.5 h-3.5" />
+              <span>CEO</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('manager@solarpos.com');
+                setPassword('Solar123!');
+              }}
+              className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all shadow-xs ${
+                email === 'manager@solarpos.com'
+                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-emerald-600/25 shadow-md ring-2 ring-emerald-400/40'
+                  : 'bg-white hover:bg-emerald-50/80 text-emerald-900 border-emerald-200/80'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Manager</span>
+            </button>
           </div>
         </div>
 

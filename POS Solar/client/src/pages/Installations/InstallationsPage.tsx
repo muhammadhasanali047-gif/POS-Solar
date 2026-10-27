@@ -28,7 +28,7 @@ import { CustomerInstallationHistoryModal } from '../../components/installations
 
 export const InstallationsPage: React.FC = () => {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'CEO';
 
   const [installations, setInstallations] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);

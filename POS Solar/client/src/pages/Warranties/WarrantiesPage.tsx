@@ -11,7 +11,7 @@ import { useAuthStore } from '../../stores/authStore';
 
 export const WarrantiesPage: React.FC = () => {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'CEO';
 
   const [warranties, setWarranties] = useState<Warranty[]>([]);
   const [filterStatus, setFilterStatus] = useState('ALL');

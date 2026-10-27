@@ -11,7 +11,7 @@ import { useAuthStore } from '../../stores/authStore';
 
 export const ClaimsPage: React.FC = () => {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'CEO';
 
   const [claims, setClaims] = useState<WarrantyClaim[]>([]);
   const [warranties, setWarranties] = useState<Warranty[]>([]);

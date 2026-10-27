@@ -19,8 +19,8 @@ export const requireRoles = (allowedRoles: string[]) => {
   };
 };
 
-export const requireAdmin = requireRoles(['ADMIN']);
+export const requireAdmin = requireRoles(['ADMIN', 'CEO']);
 export const requireCeoOrAdmin = requireRoles(['ADMIN', 'CEO']);
 export const requireManagerOrAdmin = requireRoles(['ADMIN', 'CEO', 'MANAGER']);
 export const requireDealerModuleAccess = requireRoles(['ADMIN', 'CEO', 'MANAGER']);
-export const requireStaff = requireRoles(['ADMIN', 'CEO', 'MANAGER', 'CASHIER']);
+export const requireStaff = requireRoles(['ADMIN', 'CEO', 'MANAGER']);

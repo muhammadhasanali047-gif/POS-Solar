@@ -11,7 +11,7 @@ import { useAuthStore } from '../../stores/authStore';
 
 export const PackagesPage: React.FC = () => {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'CEO';
 
   const [packages, setPackages] = useState<SolarPackage[]>([]);
   const [isLoading, setIsLoading] = useState(true);

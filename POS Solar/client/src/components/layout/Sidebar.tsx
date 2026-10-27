@@ -169,13 +169,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [currentTab, onSelectTab]);
 
-  // Auto-redirect if cashier is on a restricted tab
+  // Auto-redirect if manager is on restricted admin tab
   useEffect(() => {
-    if (role === 'CASHIER') {
-      const allowedCashierTabs = ['quick-flow', 'dashboard', 'pos', 'quotations', 'customers'];
-      if (!allowedCashierTabs.includes(currentTab)) {
-        onSelectTab('quick-flow');
-      }
+    if (role === 'MANAGER' && currentTab === 'settings') {
+      onSelectTab('dashboard');
     }
   }, [role, currentTab, onSelectTab]);
 
@@ -184,25 +181,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     .map((section) => {
       let filteredItems: NavItemConfig[] = [];
 
-      if (role === 'CASHIER') {
-        // Cashier sees Quick Flow, Sales & POS, Quotations, and Customers CRM
-        if (section.id === 'sales') {
-          filteredItems = section.items.filter((i) =>
-            ['quick-flow', 'pos', 'quotations', 'customers'].includes(i.key)
-          );
-        }
-      } else if (role === 'CEO') {
-        // CEO sees high-level operational sections
-        if (section.id !== 'admin') {
-          filteredItems = section.items;
-        }
-      } else if (role === 'MANAGER') {
+      if (role === 'MANAGER') {
         // Manager sees all operational sections except system administration
         if (section.id !== 'admin') {
           filteredItems = section.items;
         }
       } else {
-        // Admin sees everything
+        // CEO & Admin see all sections including system administration
         filteredItems = section.items;
       }
 

@@ -62,20 +62,8 @@ async function main() {
     }
   });
 
-  // 4. Users (Admin, CEO, Manager)
+  // 4. Users (CEO & Manager Only)
   const passwordHash = await bcrypt.hash('Solar123!', 10);
-
-  const adminUser = await prisma.user.create({
-    data: {
-      email: 'admin@solarpos.com',
-      password_hash: passwordHash,
-      full_name: 'Muhammad Asif (Administrator)',
-      role: 'ADMIN',
-      branch_id: mainBranch.id,
-      phone: '+92 300 1234567',
-      is_active: true,
-    }
-  });
 
   const ceoUser = await prisma.user.create({
     data: {
@@ -97,18 +85,6 @@ async function main() {
       role: 'MANAGER',
       branch_id: mainBranch.id,
       phone: '+92 321 5554321',
-      is_active: true,
-    }
-  });
-
-  const cashierUser = await prisma.user.create({
-    data: {
-      email: 'cashier@solarpos.com',
-      password_hash: passwordHash,
-      full_name: 'Asim Raza (Cashier / Counter Executive)',
-      role: 'CASHIER',
-      branch_id: mainBranch.id,
-      phone: '+92 312 3456789',
       is_active: true,
     }
   });
