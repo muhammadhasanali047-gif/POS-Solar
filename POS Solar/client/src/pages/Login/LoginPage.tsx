@@ -1,16 +1,65 @@
-import React, { useState } from 'react';
-import { ArrowRight, Lock, Mail, Eye, EyeOff, Crown, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowRight, Lock, Mail, Eye, EyeOff, Crown, ShieldCheck, CheckCircle } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 
 export const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('ceo@solarpos.com');
+  // Determine initial role from URL query param (?role=manager or ?role=admin/ceo)
+  const getInitialRole = (): 'CEO' | 'MANAGER' => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const roleParam = params.get('role')?.toLowerCase();
+      if (roleParam === 'manager') return 'MANAGER';
+      if (roleParam === 'admin' || roleParam === 'ceo') return 'CEO';
+
+      const path = window.location.pathname.toLowerCase();
+      if (path.includes('manager')) return 'MANAGER';
+      if (path.includes('admin') || path.includes('ceo')) return 'CEO';
+    } catch {}
+    return 'CEO';
+  };
+
+  const [activeRole, setActiveRole] = useState<'CEO' | 'MANAGER'>(getInitialRole);
+  const [email, setEmail] = useState(() => (getInitialRole() === 'MANAGER' ? 'manager@solarpos.com' : 'ceo@solarpos.com'));
   const [password, setPassword] = useState('Solar123!');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { login } = useAuthStore();
+
+  // Listen to URL changes if user navigates with browser back/forward
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const role = getInitialRole();
+      setActiveRole(role);
+      setEmail(role === 'MANAGER' ? 'manager@solarpos.com' : 'ceo@solarpos.com');
+      setPassword('Solar123!');
+    };
+    window.addEventListener('popstate', handleUrlChange);
+    return () => window.removeEventListener('popstate', handleUrlChange);
+  }, []);
+
+  const handleSelectRole = (role: 'CEO' | 'MANAGER') => {
+    setActiveRole(role);
+    if (role === 'CEO') {
+      setEmail('ceo@solarpos.com');
+      setPassword('Solar123!');
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('role', 'admin');
+        window.history.replaceState({}, '', url.toString());
+      } catch {}
+    } else {
+      setEmail('manager@solarpos.com');
+      setPassword('Solar123!');
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('role', 'manager');
+        window.history.replaceState({}, '', url.toString());
+      } catch {}
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,61 +80,97 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const isCEO = activeRole === 'CEO';
+
   return (
-    <div className="min-h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-sky-50/50 to-emerald-50/60 flex items-center justify-center p-3 sm:p-6 md:p-8 relative overflow-hidden selection:bg-emerald-500 selection:text-white">
+    <div
+      className={`min-h-[100dvh] w-full flex items-center justify-center p-3 sm:p-6 md:p-8 relative overflow-hidden transition-all duration-500 ${
+        isCEO
+          ? 'bg-gradient-to-br from-amber-50/60 via-slate-100 to-amber-100/40 selection:bg-amber-500'
+          : 'bg-gradient-to-br from-emerald-50/60 via-slate-100 to-teal-100/40 selection:bg-emerald-500'
+      } selection:text-white`}
+    >
       {/* Decorative ambient light orbs */}
-      <div className="absolute top-0 -left-12 w-80 sm:w-96 h-80 sm:h-96 bg-emerald-200/35 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-10 -right-10 w-80 sm:w-96 h-80 sm:h-96 bg-amber-200/35 rounded-full blur-3xl pointer-events-none" />
+      <div
+        className={`absolute top-0 -left-12 w-80 sm:w-96 h-80 sm:h-96 rounded-full blur-3xl pointer-events-none transition-colors duration-500 ${
+          isCEO ? 'bg-amber-300/30' : 'bg-emerald-300/30'
+        }`}
+      />
+      <div
+        className={`absolute -bottom-10 -right-10 w-80 sm:w-96 h-80 sm:h-96 rounded-full blur-3xl pointer-events-none transition-colors duration-500 ${
+          isCEO ? 'bg-orange-300/25' : 'bg-teal-300/25'
+        }`}
+      />
       <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] opacity-35 pointer-events-none" />
 
       {/* Main Login Card */}
-      <div className="relative z-10 w-full max-w-[420px] mx-auto bg-white rounded-2xl sm:rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.08)] border border-slate-200/80 p-5 sm:p-8 transition-all">
+      <div className="relative z-10 w-full max-w-[440px] mx-auto bg-white rounded-2xl sm:rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.08)] border border-slate-200/90 p-5 sm:p-8 transition-all">
         {/* Header Branding */}
-        <div className="flex flex-col items-center text-center mb-5 sm:mb-6">
-          <div className="p-2 sm:p-2.5 rounded-2xl bg-slate-50 border border-slate-100/90 shadow-sm">
+        <div className="flex flex-col items-center text-center mb-4 sm:mb-5">
+          <div className="p-2 sm:p-2.5 rounded-2xl bg-slate-50 border border-slate-100/90 shadow-sm mb-3">
             <img
               src="/ji-energies-logo.png"
               alt="J.I ENERGIES & ALP SOLAR"
-              className="h-12 sm:h-14 w-auto object-contain"
+              className="h-11 sm:h-13 w-auto object-contain"
             />
+          </div>
+
+          {/* Role Dedicated Banner & Title */}
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider shadow-2xs border transition-colors">
+              {isCEO ? (
+                <span className="text-amber-800 bg-amber-100 border border-amber-300 flex items-center gap-1 px-2.5 py-0.5 rounded-full">
+                  <Crown className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Executive &amp; CEO Access</span>
+                </span>
+              ) : (
+                <span className="text-emerald-800 bg-emerald-100 border border-emerald-300 flex items-center gap-1 px-2.5 py-0.5 rounded-full">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Operations &amp; Manager Access</span>
+                </span>
+              )}
+            </div>
+
+            <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+              {isCEO ? 'Executive & Admin Portal' : 'Operations & Manager Portal'}
+            </h1>
+            <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto">
+              {isCEO
+                ? 'Full system administration, access rules & financial controls'
+                : 'Sales counter, live inventory stock & customer billing'}
+            </p>
           </div>
         </div>
 
-        {/* Quick Role Fill: ONLY CEO & MANAGER */}
-        <div className="mb-4 sm:mb-5 bg-slate-50/80 border border-slate-200/70 rounded-2xl p-2.5">
-          <div className="flex items-center justify-between mb-2 px-1">
-            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Quick Account Fill
+        {/* Quick Role Fill Tabs */}
+        <div className="mb-4 sm:mb-5 bg-slate-50 border border-slate-200/80 rounded-2xl p-2">
+          <div className="flex items-center justify-between mb-1.5 px-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Select Role Portal
             </span>
-            <span className="text-[10px] text-slate-400 font-medium">1-Tap Fill</span>
+            <span className="text-[10px] text-slate-400 font-semibold">Pre-configured ID</span>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             <button
               type="button"
-              onClick={() => {
-                setEmail('ceo@solarpos.com');
-                setPassword('Solar123!');
-              }}
-              className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all shadow-xs ${
-                email === 'ceo@solarpos.com'
-                  ? 'bg-amber-500 text-white border-amber-600 shadow-amber-500/25 shadow-md ring-2 ring-amber-400/40'
-                  : 'bg-white hover:bg-amber-50/80 text-amber-900 border-amber-200/80'
+              onClick={() => handleSelectRole('CEO')}
+              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                isCEO
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/25 ring-2 ring-amber-400/30'
+                  : 'bg-white hover:bg-amber-50/70 text-slate-700 border-slate-200'
               }`}
             >
               <Crown className="w-3.5 h-3.5" />
-              <span>CEO</span>
+              <span>CEO / Admin</span>
             </button>
 
             <button
               type="button"
-              onClick={() => {
-                setEmail('manager@solarpos.com');
-                setPassword('Solar123!');
-              }}
-              className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all shadow-xs ${
-                email === 'manager@solarpos.com'
-                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-emerald-600/25 shadow-md ring-2 ring-emerald-400/40'
-                  : 'bg-white hover:bg-emerald-50/80 text-emerald-900 border-emerald-200/80'
+              onClick={() => handleSelectRole('MANAGER')}
+              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                !isCEO
+                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-md shadow-emerald-600/25 ring-2 ring-emerald-400/30'
+                  : 'bg-white hover:bg-emerald-50/70 text-slate-700 border-slate-200'
               }`}
             >
               <ShieldCheck className="w-3.5 h-3.5" />
@@ -102,9 +187,9 @@ export const LoginPage: React.FC = () => {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
               Work Email Address
             </label>
             <div className="relative">
@@ -115,13 +200,17 @@ export const LoginPage: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="you@solarcompany.com"
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 font-medium focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all shadow-xs"
+                className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 font-bold focus:outline-none focus:bg-white transition-all shadow-xs ${
+                  isCEO
+                    ? 'focus:border-amber-500 focus:ring-3 focus:ring-amber-500/15'
+                    : 'focus:border-emerald-500 focus:ring-3 focus:ring-emerald-500/15'
+                }`}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
               Password
             </label>
             <div className="relative">
@@ -132,12 +221,16 @@ export const LoginPage: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="••••••••"
-                className="w-full pl-10 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 font-medium focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white transition-all shadow-xs"
+                className={`w-full pl-10 pr-11 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 font-bold focus:outline-none focus:bg-white transition-all shadow-xs ${
+                  isCEO
+                    ? 'focus:border-amber-500 focus:ring-3 focus:ring-amber-500/15'
+                    : 'focus:border-emerald-500 focus:ring-3 focus:ring-emerald-500/15'
+                }`}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors p-1"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors p-1 cursor-pointer"
                 tabIndex={-1}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
@@ -149,16 +242,20 @@ export const LoginPage: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-600 via-teal-700 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md shadow-emerald-700/20 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+            className={`w-full py-3 px-4 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 mt-2 cursor-pointer ${
+              isCEO
+                ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-600 hover:to-amber-800 shadow-amber-600/20'
+                : 'bg-gradient-to-r from-emerald-600 via-teal-700 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 shadow-emerald-700/20'
+            }`}
           >
             {isLoading ? (
               <span className="flex items-center gap-2">
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Authenticating...
+                <span>Authenticating...</span>
               </span>
             ) : (
               <>
-                <span>Sign In to System</span>
+                <span>Sign In as {isCEO ? 'CEO / Admin' : 'Manager'}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -167,7 +264,7 @@ export const LoginPage: React.FC = () => {
 
         {/* Footer info */}
         <p className="text-center text-[10px] sm:text-[11px] text-slate-400 mt-4 sm:mt-5 font-medium">
-          © 2026 J.I Energies & Alp Solar • Central POS System
+          © 2026 J.I Energies &amp; Alp Solar • Central POS System
         </p>
       </div>
     </div>

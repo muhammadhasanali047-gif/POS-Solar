@@ -15,6 +15,10 @@ import {
   Wallet,
   Zap,
   Info,
+  Link2,
+  Copy,
+  ExternalLink,
+  CheckCheck,
 } from 'lucide-react';
 import {
   useAccessStore,
@@ -48,6 +52,30 @@ export const AccessPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSection, setSelectedSection] = useState<string>('All');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [copiedRole, setCopiedRole] = useState<'admin' | 'manager' | null>(null);
+
+  const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
+  const adminPortalUrl = `${origin}/?role=admin`;
+  const managerPortalUrl = `${origin}/?role=manager`;
+
+  const handleCopyLink = async (url: string, role: 'admin' | 'manager') => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopiedRole(role);
+      setTimeout(() => setCopiedRole(null), 2500);
+    } catch (err) {
+      console.error('Failed to copy portal URL:', err);
+    }
+  };
 
   useEffect(() => {
     fetchPermissions();
@@ -184,6 +212,181 @@ export const AccessPage: React.FC = () => {
           <span>Permissions saved successfully to central database and synchronized with Sidebar!</span>
         </div>
       )}
+
+      {/* Role-Specific Direct Authentication & Portal Links */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-lg border border-slate-700/80">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-slate-700/80">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 shrink-0">
+              <Link2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-lg font-black tracking-tight">
+                  Role-Specific Authentication &amp; Direct Portal Links
+                </h2>
+                <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                  Direct Login URLs
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 font-medium mt-0.5">
+                Admin can copy &amp; share these dedicated links with staff. Opening a link tailors the login experience, branding badge, and credentials for that role.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Portal Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          {/* Admin / CEO Portal Card */}
+          <div className="bg-slate-800/90 hover:bg-slate-800 border border-amber-500/40 hover:border-amber-500/70 rounded-2xl p-4 sm:p-5 transition-all flex flex-col justify-between shadow-sm">
+            <div>
+              <div className="flex items-start justify-between gap-3 mb-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30 shrink-0">
+                    <Crown className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-amber-300 tracking-tight">
+                      Executive &amp; Admin Portal Link
+                    </h3>
+                    <span className="text-[11px] font-bold text-slate-300">
+                      Role: CEO / System Administrator
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                  Full Access
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-300 mt-1 mb-3.5 leading-relaxed">
+                Pre-configures executive branding, amber theme, and CEO credentials for tab permissions, financial controls, and master system settings.
+              </p>
+
+              {/* URL Display Box */}
+              <div className="bg-slate-950/80 border border-slate-700 rounded-xl p-2.5 flex items-center justify-between gap-2 mb-3.5">
+                <span className="text-xs font-mono text-amber-200 truncate select-all">
+                  {adminPortalUrl}
+                </span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase bg-slate-800 px-2 py-0.5 rounded shrink-0">
+                  Direct URL
+                </span>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex items-center gap-2.5 pt-3 border-t border-slate-700/60">
+              <button
+                type="button"
+                onClick={() => handleCopyLink(adminPortalUrl, 'admin')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  copiedRole === 'admin'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 hover:border-amber-400'
+                }`}
+              >
+                {copiedRole === 'admin' ? (
+                  <>
+                    <CheckCheck className="w-4 h-4 text-white" />
+                    <span>Admin Link Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copy Admin Portal Link</span>
+                  </>
+                )}
+              </button>
+
+              <a
+                href={adminPortalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 py-2.5 px-3.5 rounded-xl text-xs font-bold bg-slate-700 hover:bg-slate-600 text-white transition-all shadow-xs shrink-0"
+                title="Open Admin Portal in new tab"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Open</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Manager Portal Card */}
+          <div className="bg-slate-800/90 hover:bg-slate-800 border border-emerald-500/40 hover:border-emerald-500/70 rounded-2xl p-4 sm:p-5 transition-all flex flex-col justify-between shadow-sm">
+            <div>
+              <div className="flex items-start justify-between gap-3 mb-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 shrink-0">
+                    <Briefcase className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-emerald-300 tracking-tight">
+                      Operations &amp; Manager Portal Link
+                    </h3>
+                    <span className="text-[11px] font-bold text-slate-300">
+                      Role: Operations &amp; Branch Manager
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
+                  Branch Ops
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-300 mt-1 mb-3.5 leading-relaxed">
+                Pre-configures operations branding, emerald theme, and Manager credentials for sales billing, live stock replenishment, quotations, and service tasks.
+              </p>
+
+              {/* URL Display Box */}
+              <div className="bg-slate-950/80 border border-slate-700 rounded-xl p-2.5 flex items-center justify-between gap-2 mb-3.5">
+                <span className="text-xs font-mono text-emerald-200 truncate select-all">
+                  {managerPortalUrl}
+                </span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase bg-slate-800 px-2 py-0.5 rounded shrink-0">
+                  Direct URL
+                </span>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex items-center gap-2.5 pt-3 border-t border-slate-700/60">
+              <button
+                type="button"
+                onClick={() => handleCopyLink(managerPortalUrl, 'manager')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  copiedRole === 'manager'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/50 hover:border-emerald-400'
+                }`}
+              >
+                {copiedRole === 'manager' ? (
+                  <>
+                    <CheckCheck className="w-4 h-4 text-white" />
+                    <span>Manager Link Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copy Manager Portal Link</span>
+                  </>
+                )}
+              </button>
+
+              <a
+                href={managerPortalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 py-2.5 px-3.5 rounded-xl text-xs font-bold bg-slate-700 hover:bg-slate-600 text-white transition-all shadow-xs shrink-0"
+                title="Open Manager Portal in new tab"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Open</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Filter and Search Bar */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
