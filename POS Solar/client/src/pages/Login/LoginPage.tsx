@@ -31,22 +31,6 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const setDemoAccount = (role: 'ADMIN' | 'CEO' | 'MANAGER' | 'CASHIER') => {
-    if (role === 'ADMIN') {
-      setEmail('admin@solarpos.com');
-      setPassword('Solar123!');
-    } else if (role === 'CEO') {
-      setEmail('ceo@solarpos.com');
-      setPassword('Solar123!');
-    } else if (role === 'CASHIER') {
-      setEmail('cashier@solarpos.com');
-      setPassword('Solar123!');
-    } else {
-      setEmail('manager@solarpos.com');
-      setPassword('Solar123!');
-    }
-  };
-
   return (
     <div className="min-h-[100dvh] w-full bg-gradient-to-br from-slate-100 via-sky-50/50 to-emerald-50/60 flex items-center justify-center p-3 sm:p-6 md:p-8 relative overflow-hidden selection:bg-emerald-500 selection:text-white">
       {/* Decorative ambient light orbs */}
@@ -137,46 +121,6 @@ export const LoginPage: React.FC = () => {
             )}
           </button>
         </form>
-
-        {/* 1-Click Role Switchers for Instant Demonstration */}
-        <div className="mt-6 sm:mt-7 pt-5 border-t border-slate-100 text-center">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
-            Quick Test Accounts (1-Click Fill)
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <button
-              type="button"
-              onClick={() => setDemoAccount('ADMIN')}
-              className="px-2 py-2 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 text-xs font-bold hover:bg-purple-100 active:scale-95 transition-all shadow-xs"
-            >
-              Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => setDemoAccount('CEO')}
-              className="px-2 py-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-xs font-bold hover:bg-amber-100 active:scale-95 transition-all shadow-xs"
-            >
-              CEO
-            </button>
-            <button
-              type="button"
-              onClick={() => setDemoAccount('MANAGER')}
-              className="px-2 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 active:scale-95 transition-all shadow-xs"
-            >
-              Manager
-            </button>
-            <button
-              type="button"
-              onClick={() => setDemoAccount('CASHIER')}
-              className="px-2 py-2 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 active:scale-95 transition-all shadow-xs"
-            >
-              Cashier
-            </button>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-3 font-medium">
-            Password: <code className="bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded-md border border-slate-200">Solar123!</code>
-          </p>
-        </div>
 
         {/* Footer info */}
         <p className="text-center text-[10px] sm:text-[11px] text-slate-400 mt-4 sm:mt-5 font-medium">
