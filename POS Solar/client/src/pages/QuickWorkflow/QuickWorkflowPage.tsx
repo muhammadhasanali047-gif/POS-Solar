@@ -100,6 +100,9 @@ export const QuickWorkflowPage: React.FC = () => {
   const [invoiceAdvancePaid, setInvoiceAdvancePaid] = useState<number>(10000);
   const [invoicePaymentMethod, setInvoicePaymentMethod] = useState('CASH');
   const [invoiceDiscount, setInvoiceDiscount] = useState<number>(0);
+  const [invoiceTaxRate, setInvoiceTaxRate] = useState<number>(18);
+  const [invoiceTaxAmount, setInvoiceTaxAmount] = useState<number>(0);
+  const [isInvoiceTaxManual, setIsInvoiceTaxManual] = useState<boolean>(false);
   const [isSavingInvoice, setIsSavingInvoice] = useState(false);
 
   // ==========================================
@@ -412,9 +415,30 @@ export const QuickWorkflowPage: React.FC = () => {
     return invoiceItems.reduce((acc, it) => acc + it.totalPrice, 0);
   }, [invoiceItems]);
 
+  useEffect(() => {
+    if (!isInvoiceTaxManual) {
+      setInvoiceTaxAmount(Math.round(invoiceSubtotal * (invoiceTaxRate / 100)));
+    }
+  }, [invoiceSubtotal, invoiceTaxRate, isInvoiceTaxManual]);
+
+  const handleSetInvoiceTaxRate = (rate: number) => {
+    setIsInvoiceTaxManual(false);
+    setInvoiceTaxRate(rate);
+    setInvoiceTaxAmount(Math.round(invoiceSubtotal * (rate / 100)));
+  };
+
+  const handleSetInvoiceTaxAmount = (amount: number) => {
+    setIsInvoiceTaxManual(true);
+    setInvoiceTaxAmount(amount);
+    if (invoiceSubtotal > 0) {
+      const derivedRate = Math.round((amount / invoiceSubtotal) * 1000) / 10;
+      setInvoiceTaxRate(derivedRate);
+    }
+  };
+
   const invoiceGrandTotal = useMemo(() => {
-    return Math.max(0, invoiceSubtotal - Number(invoiceDiscount || 0));
-  }, [invoiceSubtotal, invoiceDiscount]);
+    return Math.max(0, invoiceSubtotal - Number(invoiceDiscount || 0) + Number(invoiceTaxAmount || 0));
+  }, [invoiceSubtotal, invoiceDiscount, invoiceTaxAmount]);
 
   const invoiceBalanceDue = useMemo(() => {
     return Math.max(0, invoiceGrandTotal - Number(invoiceAdvancePaid || 0));
@@ -432,6 +456,7 @@ export const QuickWorkflowPage: React.FC = () => {
           quantity: it.quantity,
           unit_price: it.unitPrice,
         })),
+        tax: Number(invoiceTaxAmount || 0),
         discount: Number(invoiceDiscount || 0),
         paid_amount: Number(invoiceAdvancePaid || 0),
         payment_method: invoicePaymentMethod,
@@ -441,8 +466,8 @@ export const QuickWorkflowPage: React.FC = () => {
       const res = await api.post('/sales', payload);
       if (res.data?.success) {
         const savedSale = res.data.data;
-        const tax = Math.round(invoiceSubtotal * 0.18);
-        const taxedTotal = Math.round(invoiceSubtotal * 1.18) - Number(invoiceDiscount || 0);
+        const tax = Number(invoiceTaxAmount || 0);
+        const taxedTotal = invoiceGrandTotal;
 
         triggerPrint({
           docType: 'invoice',
@@ -455,7 +480,7 @@ export const QuickWorkflowPage: React.FC = () => {
           salespersonName: user?.full_name ? `${user.full_name} (Sales Desk)` : 'Engr. Usman Tariq (Sales Desk)',
           validityDays: 'Expired 2 Days',
           isDealLock: true,
-          taxRate: 18,
+          taxRate: invoiceTaxRate,
           untaxedAmount: invoiceSubtotal,
           tax,
           taxedTotal,
@@ -464,7 +489,7 @@ export const QuickWorkflowPage: React.FC = () => {
             quantity: it.quantity,
             unit_price: it.unitPrice,
             total_price: it.totalPrice,
-            tax_rate: 18,
+            tax_rate: invoiceTaxRate,
           })),
           subtotal: invoiceSubtotal,
           discount: invoiceDiscount,
@@ -1331,59 +1356,191 @@ export const QuickWorkflowPage: React.FC = () => {
               </table>
             </div>
 
-            {/* Advance Payment & Totals Section */}
+            {/* Advance Payment, Discount, Tax & Totals Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100 dark:border-slate-800">
-              <div className="p-5 bg-solar-50/70 dark:bg-solar-950/30 rounded-2xl border-2 border-solar-600 dark:border-solar-600 space-y-4">
-                <span className="font-black text-solar-800 dark:text-solar-200 block text-xs uppercase tracking-wider">
-                  Advance Payment (booking Deposit)
-                </span>
+              <div className="space-y-4">
+                {/* Advance Payment (Booking Deposit) */}
+                <div className="p-4 bg-solar-50/70 dark:bg-solar-950/30 rounded-2xl border-2 border-solar-600 dark:border-solar-600 space-y-3">
+                  <span className="font-black text-solar-800 dark:text-solar-200 block text-xs uppercase tracking-wider">
+                    Advance Payment (Booking Deposit)
+                  </span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <label className="font-black text-gray-900 dark:text-white block mb-1">
-                      [ Advance Paid (Rs.) ]
-                    </label>
-                    <input
-                      type="number"
-                      value={invoiceAdvancePaid}
-                      onChange={(e) => setInvoiceAdvancePaid(Number(e.target.value))}
-                      className="w-full p-2.5 bg-white dark:bg-slate-900 border-2 border-solar-600 dark:border-solar-500 rounded-xl font-black text-solar-700 dark:text-solar-300 text-base focus:outline-none focus:ring-2 focus:ring-solar-500"
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="font-black text-gray-900 dark:text-white block mb-1">
+                        Advance Paid (Rs.)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={invoiceAdvancePaid || ''}
+                        onChange={(e) => setInvoiceAdvancePaid(Number(e.target.value))}
+                        className="w-full p-2 bg-white dark:bg-slate-900 border border-solar-600 dark:border-solar-500 rounded-xl font-black text-solar-700 dark:text-solar-300 text-sm focus:outline-none focus:ring-2 focus:ring-solar-500"
+                      />
+                    </div>
 
-                  <div>
-                    <PaymentMethodSelect
-                      label="Payment Mode"
-                      value={invoicePaymentMethod}
-                      onChange={(val) => setInvoicePaymentMethod(val)}
-                    />
+                    <div>
+                      <PaymentMethodSelect
+                        label="Payment Mode"
+                        value={invoicePaymentMethod}
+                        onChange={(val) => setInvoicePaymentMethod(val)}
+                      />
+                    </div>
                   </div>
+                </div>
+
+                {/* Discount */}
+                <div>
+                  <label className="text-xs font-black text-gray-900 dark:text-white block mb-1">
+                    Discount (Rs.)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={invoiceDiscount || ''}
+                    onChange={(e) => setInvoiceDiscount(Number(e.target.value))}
+                    placeholder="0"
+                    className="w-full p-2.5 bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-solar-500"
+                  />
                 </div>
               </div>
 
-              <div className="bg-gray-50 dark:bg-slate-950 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 space-y-2 text-xs">
-                <div className="flex justify-between font-bold text-gray-900 dark:text-white">
-                  <span>Gross Invoice Total:</span>
-                  <span className="font-bold">{formatCurrency(invoiceGrandTotal)}</span>
-                </div>
-                <div className="flex justify-between text-solar-600 dark:text-solar-400 font-black">
-                  <span>Advance Received:</span>
-                  <span>{formatCurrency(invoiceAdvancePaid)}</span>
-                </div>
-                <div className="flex justify-between text-amber-600 font-black text-base pt-2 border-t border-gray-200 dark:border-slate-800">
-                  <span>Balance Outstanding Due:</span>
-                  <span>{formatCurrency(invoiceBalanceDue)}</span>
+              {/* Right Column: Editable Tax & Grand Total */}
+              <div className="space-y-3">
+                {/* Editable Tax Card */}
+                <div className="p-3.5 bg-amber-50/80 dark:bg-amber-950/20 border-2 border-amber-300 dark:border-amber-700/60 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
+                      <span>Sales Tax / GST</span>
+                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded-full">
+                        Editable
+                      </span>
+                    </label>
+                    <span className="text-xs font-black text-amber-800 dark:text-amber-300 font-mono">
+                      {invoiceTaxRate}% = {formatCurrency(invoiceTaxAmount)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
+                        Tax Amount (Rs.)
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={invoiceTaxAmount === 0 ? '' : invoiceTaxAmount}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          handleSetInvoiceTaxAmount(isNaN(val) ? 0 : val);
+                        }}
+                        placeholder="0 (Rs.)"
+                        className="w-full p-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded-lg text-xs font-black text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono"
+                        title="Directly edit tax amount in Rupees"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
+                        Tax Rate (%)
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={invoiceTaxRate === 0 ? '' : invoiceTaxRate}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          handleSetInvoiceTaxRate(isNaN(val) ? 0 : val);
+                        }}
+                        placeholder="0%"
+                        className="w-full p-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded-lg text-xs font-black text-center text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono"
+                        title="Edit tax percentage rate"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick 1-Click Tax Presets */}
+                  <div className="flex items-center justify-between pt-1 border-t border-amber-200/60 dark:border-amber-900/40 text-[10px]">
+                    <span className="text-gray-600 dark:text-gray-400 font-bold">Quick Presets:</span>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleSetInvoiceTaxRate(0)}
+                        className={`px-2 py-0.5 rounded font-black border transition-all cursor-pointer ${
+                          invoiceTaxAmount === 0
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                            : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-slate-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        0% (Exempt)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSetInvoiceTaxRate(5)}
+                        className={`px-2 py-0.5 rounded font-black border transition-all cursor-pointer ${
+                          invoiceTaxRate === 5
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                            : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-slate-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        5%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSetInvoiceTaxRate(18)}
+                        className={`px-2 py-0.5 rounded font-black border transition-all cursor-pointer ${
+                          invoiceTaxRate === 18
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                            : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-slate-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        18% GST
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  disabled={isSavingInvoice || invoiceItems.length === 0}
-                  onClick={handleSaveAndPrintInvoice}
-                  className="w-full py-3.5 bg-solar-600 hover:bg-solar-700 text-white rounded-xl font-black text-xs shadow-md transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-3"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>{isSavingInvoice ? 'Processing...' : 'Save & Print Official Invoice'}</span>
-                </button>
+                {/* Totals Summary */}
+                <div className="bg-gray-50 dark:bg-slate-950 p-4 rounded-2xl border border-gray-200 dark:border-slate-800 space-y-2 text-xs">
+                  <div className="flex justify-between font-bold text-gray-700 dark:text-gray-300">
+                    <span>Subtotal (Untaxed):</span>
+                    <span>{formatCurrency(invoiceSubtotal)}</span>
+                  </div>
+                  {invoiceDiscount > 0 && (
+                    <div className="flex justify-between font-bold text-rose-600">
+                      <span>Discount:</span>
+                      <span>-{formatCurrency(invoiceDiscount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-amber-700 dark:text-amber-400">
+                    <span>Sales Tax ({invoiceTaxRate}%):</span>
+                    <span>+{formatCurrency(invoiceTaxAmount)}</span>
+                  </div>
+                  <div className="flex justify-between font-black text-gray-900 dark:text-white pt-1 border-t border-gray-200 dark:border-slate-800">
+                    <span>Taxed Grand Total:</span>
+                    <span className="text-sm">{formatCurrency(invoiceGrandTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-solar-600 dark:text-solar-400 font-black">
+                    <span>Advance Received:</span>
+                    <span>{formatCurrency(invoiceAdvancePaid)}</span>
+                  </div>
+                  <div className="flex justify-between text-amber-600 font-black text-sm pt-2 border-t border-gray-200 dark:border-slate-800">
+                    <span>Balance Outstanding Due:</span>
+                    <span>{formatCurrency(invoiceBalanceDue)}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={isSavingInvoice || invoiceItems.length === 0}
+                    onClick={handleSaveAndPrintInvoice}
+                    className="w-full py-3.5 bg-solar-600 hover:bg-solar-700 text-white rounded-xl font-black text-xs shadow-md transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer mt-3"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>{isSavingInvoice ? 'Processing...' : 'Save & Print Official Invoice'}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

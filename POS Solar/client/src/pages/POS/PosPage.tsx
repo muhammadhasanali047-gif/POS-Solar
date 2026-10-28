@@ -226,9 +226,9 @@ export const PosPage: React.FC = () => {
         // Instant Auto-Print Document Preparation
         const cust = customers.find((c) => c.id === cart.customer_id);
         const subtotal = cart.getSubtotal();
-        const taxRate = 18;
-        const tax = Math.round(subtotal * 0.18);
-        const taxedGrandTotal = Math.round(subtotal * 1.18) - (cart.discount || 0) + (cart.installation_charges || 0) + (cart.transport_charges || 0);
+        const taxRate = cart.tax_rate ?? 18;
+        const tax = cart.tax;
+        const taxedGrandTotal = cart.getGrandTotal();
 
         const printDoc: PrintDocumentData = {
           docType: 'invoice',
@@ -252,7 +252,7 @@ export const PosPage: React.FC = () => {
             total_price: it.quantity * it.unit_price,
             model: it.product.model_number,
             serials: it.serial_numbers,
-            tax_rate: 18,
+            tax_rate: taxRate,
           })),
           subtotal,
           discount: cart.discount,
@@ -605,17 +605,18 @@ export const PosPage: React.FC = () => {
               </div>
             )}
 
-            {/* Charges, Discounts, and Payment Method */}
-            <div className="space-y-2 text-xs">
+            {/* Charges, Discounts, Tax, and Payment Method */}
+            <div className="space-y-2.5 text-xs">
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs font-black text-gray-900 dark:text-white block mb-1">Discount (Rs.)</label>
                   <input
                     type="number"
+                    min="0"
                     value={cart.discount || ''}
                     onChange={(e) => cart.setDiscount(Number(e.target.value))}
                     placeholder="0"
-                    className="w-full p-2 bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg text-xs font-bold text-gray-900 dark:text-white placeholder:text-gray-900 dark:placeholder:text-gray-200 focus:outline-none focus:border-solar-500"
+                    className="w-full p-2 bg-gray-50 dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-lg text-xs font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-solar-500"
                   />
                 </div>
                 <div>
@@ -623,6 +624,101 @@ export const PosPage: React.FC = () => {
                     value={cart.payment_method}
                     onChange={(val) => cart.setPaymentMethod(val)}
                   />
+                </div>
+              </div>
+
+              {/* Editable Sales Tax / GST Box */}
+              <div className="p-2.5 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
+                    <span>Sales Tax / GST</span>
+                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.2 rounded">
+                      Editable
+                    </span>
+                  </label>
+                  <span className="text-[11px] font-black text-amber-800 dark:text-amber-300 font-mono">
+                    {cart.tax_rate}% = {formatCurrency(cart.tax)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 block mb-0.5">
+                      Tax Amount (Rs.)
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={cart.tax === 0 ? '' : cart.tax}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        cart.setTaxAmount(isNaN(val) ? 0 : val);
+                      }}
+                      placeholder="0 (Rs.)"
+                      className="w-full p-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded-lg text-xs font-black text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono"
+                      title="Directly edit tax amount in Rupees"
+                    />
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 block mb-0.5">
+                      Tax Rate (%)
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      value={cart.tax_rate === 0 ? '' : cart.tax_rate}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        cart.setTaxRate(isNaN(val) ? 0 : val);
+                      }}
+                      placeholder="0%"
+                      className="w-full p-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded-lg text-xs font-black text-center text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono"
+                      title="Edit tax percentage rate"
+                    />
+                  </div>
+                </div>
+
+                {/* Quick 1-Click Tax Presets */}
+                <div className="flex items-center justify-between pt-1 border-t border-amber-200/60 dark:border-amber-900/40 text-[10px]">
+                  <span className="text-gray-500 font-bold">Quick GST Presets:</span>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => cart.setTaxRate(0)}
+                      className={`px-2 py-0.5 rounded font-black border transition-all cursor-pointer ${
+                        cart.tax === 0
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                          : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      0% (Exempt)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => cart.setTaxRate(5)}
+                      className={`px-2 py-0.5 rounded font-black border transition-all cursor-pointer ${
+                        cart.tax_rate === 5
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                          : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      5%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => cart.setTaxRate(18)}
+                      className={`px-2 py-0.5 rounded font-black border transition-all cursor-pointer ${
+                        cart.tax_rate === 18
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                          : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      18% GST
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -722,19 +818,41 @@ export const PosPage: React.FC = () => {
           </div>
 
           {/* Checkout Totals & Button */}
-          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800 space-y-2">
-            <div className="flex justify-between text-xs font-bold text-gray-900 dark:text-white">
-              <span>Subtotal:</span>
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800 space-y-1.5 text-xs">
+            <div className="flex justify-between font-bold text-gray-700 dark:text-gray-300">
+              <span>Subtotal (Untaxed):</span>
               <span>{formatCurrency(cart.getSubtotal())}</span>
             </div>
-            <div className="flex justify-between text-base font-black text-gray-900 dark:text-white">
-              <span>Grand Total:</span>
+            {cart.discount > 0 && (
+              <div className="flex justify-between font-bold text-rose-600">
+                <span>Discount:</span>
+                <span>-{formatCurrency(cart.discount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-bold text-amber-700 dark:text-amber-400">
+              <span>Sales Tax ({cart.tax_rate}%):</span>
+              <span>+{formatCurrency(cart.tax)}</span>
+            </div>
+            {cart.installation_charges > 0 && (
+              <div className="flex justify-between font-bold text-gray-700 dark:text-gray-300">
+                <span>Installation Fee:</span>
+                <span>+{formatCurrency(cart.installation_charges)}</span>
+              </div>
+            )}
+            {cart.transport_charges > 0 && (
+              <div className="flex justify-between font-bold text-gray-700 dark:text-gray-300">
+                <span>Transport Fee:</span>
+                <span>+{formatCurrency(cart.transport_charges)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-base font-black text-gray-900 dark:text-white pt-2 border-t border-gray-200 dark:border-slate-700">
+              <span>Taxed Grand Total:</span>
               <span className="text-gray-900 dark:text-white">
                 {formatCurrency(cart.getGrandTotal())}
               </span>
             </div>
             {cart.getBalanceDue() > 0 && (
-              <div className="flex justify-between text-xs text-gray-900 dark:text-white font-black">
+              <div className="flex justify-between text-xs text-rose-600 font-black">
                 <span>Remaining Balance Due:</span>
                 <span>{formatCurrency(cart.getBalanceDue())}</span>
               </div>
@@ -879,8 +997,9 @@ export const PosPage: React.FC = () => {
                 onClick={() => {
                   const cust = customers.find((c) => c.id === completedSale.customer_id) || completedSale.customer;
                   const untaxed = completedSale.subtotal || completedSale.grand_total || 0;
-                  const taxAmt = Math.round(untaxed * 0.18);
-                  const taxedGrandTotal = Math.round(untaxed * 1.18) - (completedSale.discount || 0) + (completedSale.installation_charges || 0) + (completedSale.transport_charges || 0);
+                  const taxAmt = completedSale.tax !== undefined ? completedSale.tax : Math.round(untaxed * 0.18);
+                  const taxRate = untaxed > 0 ? Math.round((taxAmt / untaxed) * 100) : 18;
+                  const taxedGrandTotal = completedSale.grand_total || (untaxed + taxAmt - (completedSale.discount || 0) + (completedSale.installation_charges || 0) + (completedSale.transport_charges || 0));
 
                   triggerPrint({
                     docType: 'invoice',
@@ -893,7 +1012,7 @@ export const PosPage: React.FC = () => {
                     salespersonName: user?.full_name ? `${user.full_name} (Sales Desk)` : 'Engr. Usman Tariq (Sales Desk)',
                     validityDays: 'Expired 2 Days',
                     isDealLock: true,
-                    taxRate: 18,
+                    taxRate,
                     untaxedAmount: untaxed,
                     tax: taxAmt,
                     taxedTotal: taxedGrandTotal,
@@ -902,7 +1021,7 @@ export const PosPage: React.FC = () => {
                       quantity: it.quantity,
                       unit_price: it.unit_price,
                       total_price: it.total_price,
-                      tax_rate: 18,
+                      tax_rate: taxRate,
                     })) || [],
                     subtotal: completedSale.subtotal,
                     discount: completedSale.discount,

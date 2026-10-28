@@ -17,6 +17,8 @@ interface CartState {
   warehouse_id: string;
   discount: number;
   tax: number;
+  tax_rate: number;
+  is_tax_manual: boolean;
   installation_charges: number;
   transport_charges: number;
   paid_amount: number;
@@ -35,6 +37,8 @@ interface CartState {
   setWarehouseId: (id: string) => void;
   setDiscount: (val: number) => void;
   setTax: (val: number) => void;
+  setTaxRate: (rate: number) => void;
+  setTaxAmount: (amount: number) => void;
   setInstallationCharges: (val: number) => void;
   setTransportCharges: (val: number) => void;
   setPaidAmount: (val: number) => void;
@@ -55,6 +59,8 @@ export const useCartStore = create<CartState>((set, get) => ({
   warehouse_id: '',
   discount: 0,
   tax: 0,
+  tax_rate: 18,
+  is_tax_manual: false,
   installation_charges: 0,
   transport_charges: 0,
   paid_amount: 0,
@@ -69,6 +75,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       );
 
       const price = variant?.sale_price || product.sale_price || 0;
+      let newItems: CartItem[];
 
       if (existingIdx > -1) {
         const updated = [...state.items];
@@ -78,34 +85,42 @@ export const useCartStore = create<CartState>((set, get) => ({
           quantity: newQty,
           total_price: newQty * updated[existingIdx].unit_price,
         };
-        return { items: updated };
+        newItems = updated;
+      } else {
+        const newItem: CartItem = {
+          product,
+          variant,
+          quantity: qty,
+          unit_price: price,
+          total_price: price * qty,
+          serial_numbers: [],
+        };
+        newItems = [...state.items, newItem];
       }
 
-      const newItem: CartItem = {
-        product,
-        variant,
-        quantity: qty,
-        unit_price: price,
-        total_price: price * qty,
-        serial_numbers: [],
-      };
-      return { items: [...state.items, newItem] };
+      const newSub = newItems.reduce((sum, it) => sum + it.total_price, 0);
+      const newTax = state.is_tax_manual ? state.tax : Math.round(newSub * (state.tax_rate / 100));
+
+      return { items: newItems, tax: newTax };
     });
   },
 
   removeItem: (productId, variantId) => {
-    set((state) => ({
-      items: state.items.filter(
+    set((state) => {
+      const newItems = state.items.filter(
         (i) => !(i.product.id === productId && i.variant?.id === variantId)
-      ),
-    }));
+      );
+      const newSub = newItems.reduce((sum, it) => sum + it.total_price, 0);
+      const newTax = state.is_tax_manual ? state.tax : Math.round(newSub * (state.tax_rate / 100));
+      return { items: newItems, tax: newTax };
+    });
   },
 
   updateQuantity: (productId, variantId, qty) => {
-    set((state) => ({
-      items: state.items.map((i) => {
+    set((state) => {
+      const safeQty = Math.max(1, qty);
+      const newItems = state.items.map((i) => {
         if (i.product.id === productId && i.variant?.id === variantId) {
-          const safeQty = Math.max(1, qty);
           return {
             ...i,
             quantity: safeQty,
@@ -113,13 +128,16 @@ export const useCartStore = create<CartState>((set, get) => ({
           };
         }
         return i;
-      }),
-    }));
+      });
+      const newSub = newItems.reduce((sum, it) => sum + it.total_price, 0);
+      const newTax = state.is_tax_manual ? state.tax : Math.round(newSub * (state.tax_rate / 100));
+      return { items: newItems, tax: newTax };
+    });
   },
 
   updateUnitPrice: (productId, variantId, price) => {
-    set((state) => ({
-      items: state.items.map((i) => {
+    set((state) => {
+      const newItems = state.items.map((i) => {
         if (i.product.id === productId && i.variant?.id === variantId) {
           return {
             ...i,
@@ -128,8 +146,11 @@ export const useCartStore = create<CartState>((set, get) => ({
           };
         }
         return i;
-      }),
-    }));
+      });
+      const newSub = newItems.reduce((sum, it) => sum + it.total_price, 0);
+      const newTax = state.is_tax_manual ? state.tax : Math.round(newSub * (state.tax_rate / 100));
+      return { items: newItems, tax: newTax };
+    });
   },
 
   addSerialNumber: (productId, variantId, sn) => {
@@ -161,6 +182,16 @@ export const useCartStore = create<CartState>((set, get) => ({
   setWarehouseId: (id) => set({ warehouse_id: id }),
   setDiscount: (discount) => set({ discount }),
   setTax: (tax) => set({ tax }),
+  setTaxRate: (tax_rate) => {
+    const sub = get().getSubtotal();
+    const tax = Math.round(sub * (tax_rate / 100));
+    set({ tax_rate, tax, is_tax_manual: false });
+  },
+  setTaxAmount: (tax) => {
+    const sub = get().getSubtotal();
+    const tax_rate = sub > 0 ? Number(((tax / sub) * 100).toFixed(1)) : 0;
+    set({ tax, tax_rate, is_tax_manual: true });
+  },
   setInstallationCharges: (installation_charges) => set({ installation_charges }),
   setTransportCharges: (transport_charges) => set({ transport_charges }),
   setPaidAmount: (paid_amount) => set({ paid_amount }),
@@ -175,6 +206,8 @@ export const useCartStore = create<CartState>((set, get) => ({
       dealer_id: '',
       discount: 0,
       tax: 0,
+      tax_rate: 18,
+      is_tax_manual: false,
       installation_charges: 0,
       transport_charges: 0,
       paid_amount: 0,
