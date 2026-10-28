@@ -25,6 +25,8 @@ import {
   Lock,
   CheckCircle2,
   X,
+  Globe,
+  Laptop,
 } from 'lucide-react';
 import api from '../../lib/api';
 import {
@@ -126,9 +128,15 @@ export const AccessPage: React.FC = () => {
     }
   };
 
-  const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
-  const adminPortalUrl = `${origin}/?role=admin`;
-  const managerPortalUrl = `${origin}/?role=manager`;
+  const currentOrigin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
+  const LIVE_CLOUD_ORIGIN = 'http://52.77.253.100';
+
+  // Toggle between live public cloud server and local dev environment
+  const [linkMode, setLinkMode] = useState<'public' | 'local'>('public');
+
+  const activeOrigin = linkMode === 'public' ? LIVE_CLOUD_ORIGIN : (currentOrigin || 'http://localhost:5173');
+  const adminPortalUrl = `${activeOrigin}/?role=admin`;
+  const managerPortalUrl = `${activeOrigin}/?role=manager`;
 
   const handleCopyLink = async (url: string, role: 'admin' | 'manager') => {
     try {
@@ -305,6 +313,52 @@ export const AccessPage: React.FC = () => {
                 Admin can copy &amp; share these dedicated links with staff. Opening a link tailors the login experience, branding badge, and credentials for that role.
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Toggle Mode: Public Cloud vs Local */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-3 pt-3 border-t border-slate-700/60">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-bold text-slate-300">Link Type:</span>
+            <div className="inline-flex p-1 bg-slate-950/80 rounded-xl border border-slate-700/80 gap-1">
+              <button
+                type="button"
+                onClick={() => setLinkMode('public')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  linkMode === 'public'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>🌐 Public Live Cloud (For WhatsApp / Other Staff)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLinkMode('local')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  linkMode === 'local'
+                    ? 'bg-solar-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                <Laptop className="w-3.5 h-3.5" />
+                <span>💻 Localhost (This PC Only)</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="text-[11px] font-medium text-slate-300">
+            {linkMode === 'public' ? (
+              <span className="text-emerald-400 font-bold flex items-center gap-1">
+                ✓ Public URL: works on phones, WhatsApp, and remote devices.
+              </span>
+            ) : (
+              <span className="text-amber-300 font-bold flex items-center gap-1">
+                ⚠ Local URL: only opens on this computer (port 5173).
+              </span>
+            )}
           </div>
         </div>
 
