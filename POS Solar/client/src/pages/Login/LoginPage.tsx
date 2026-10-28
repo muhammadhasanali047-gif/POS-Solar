@@ -19,9 +19,17 @@ export const LoginPage: React.FC = () => {
     return 'CEO';
   };
 
+  const getInitialPassword = (role: 'CEO' | 'MANAGER'): string => {
+    try {
+      const saved = localStorage.getItem(`solar_${role.toLowerCase()}_custom_pwd`);
+      if (saved) return saved;
+    } catch {}
+    return 'Solar123!';
+  };
+
   const [activeRole, setActiveRole] = useState<'CEO' | 'MANAGER'>(getInitialRole);
   const [email, setEmail] = useState(() => (getInitialRole() === 'MANAGER' ? 'manager@solarpos.com' : 'ceo@solarpos.com'));
-  const [password, setPassword] = useState('Solar123!');
+  const [password, setPassword] = useState(() => getInitialPassword(getInitialRole()));
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +42,7 @@ export const LoginPage: React.FC = () => {
       const role = getInitialRole();
       setActiveRole(role);
       setEmail(role === 'MANAGER' ? 'manager@solarpos.com' : 'ceo@solarpos.com');
-      setPassword('Solar123!');
+      setPassword(getInitialPassword(role));
     };
     window.addEventListener('popstate', handleUrlChange);
     return () => window.removeEventListener('popstate', handleUrlChange);
@@ -44,7 +52,7 @@ export const LoginPage: React.FC = () => {
     setActiveRole(role);
     if (role === 'CEO') {
       setEmail('ceo@solarpos.com');
-      setPassword('Solar123!');
+      setPassword(getInitialPassword('CEO'));
       try {
         const url = new URL(window.location.href);
         url.searchParams.set('role', 'admin');
@@ -52,7 +60,7 @@ export const LoginPage: React.FC = () => {
       } catch {}
     } else {
       setEmail('manager@solarpos.com');
-      setPassword('Solar123!');
+      setPassword(getInitialPassword('MANAGER'));
       try {
         const url = new URL(window.location.href);
         url.searchParams.set('role', 'manager');
@@ -69,6 +77,9 @@ export const LoginPage: React.FC = () => {
     try {
       const res = await api.post('/auth/login', { email, password });
       if (res.data.success) {
+        try {
+          localStorage.setItem(`solar_${activeRole.toLowerCase()}_custom_pwd`, password);
+        } catch {}
         login(res.data.data.token, res.data.data.user);
       } else {
         setError(res.data.error || 'Login failed');

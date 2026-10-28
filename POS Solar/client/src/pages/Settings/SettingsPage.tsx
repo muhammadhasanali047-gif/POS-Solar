@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, Users, Plus, Wifi, RefreshCw, Database, Shield, Cloud, CheckCircle2 } from 'lucide-react';
+import { Settings, Users, Plus, Wifi, RefreshCw, Database, Shield, Cloud, CheckCircle2, KeyRound, Lock } from 'lucide-react';
 import api, { getOfflineQueue } from '../../lib/api';
 import { formatDate } from '../../lib/utils';
 import { DataTable, Column } from '../../components/ui/DataTable';
@@ -19,6 +19,57 @@ export const SettingsPage: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('Solar123!');
   const [role, setRole] = useState<'ADMIN' | 'CEO' | 'MANAGER'>('MANAGER');
+
+  // Reset Password Modal
+  const [selectedUserForReset, setSelectedUserForReset] = useState<User | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
+
+  const handleOpenResetModal = (u: User) => {
+    setSelectedUserForReset(u);
+    setNewPassword('');
+    setResetMsg(null);
+    setShowResetModal(true);
+  };
+
+  const handleSaveResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUserForReset) return;
+    if (newPassword.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsResetting(true);
+    setResetMsg(null);
+    try {
+      const res = await api.post('/auth/reset-password', {
+        email: selectedUserForReset.email,
+        new_password: newPassword,
+      });
+
+      if (res.data?.success) {
+        try {
+          const roleKey = selectedUserForReset.role?.toLowerCase() || 'manager';
+          localStorage.setItem(`solar_${roleKey}_custom_pwd`, newPassword);
+        } catch {}
+
+        setResetMsg(`Password for ${selectedUserForReset.full_name} updated successfully!`);
+        setTimeout(() => {
+          setShowResetModal(false);
+          setResetMsg(null);
+        }, 2000);
+      } else {
+        alert(res.data?.error || 'Failed to update password');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to update password');
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const { isOnline, isSyncing, pendingCount, triggerSync, checkHealth } = useSyncStore();
   const offlineQueue = getOfflineQueue();
@@ -128,6 +179,20 @@ export const SettingsPage: React.FC = () => {
       key: 'created_at',
       header: 'Created',
       render: (u) => formatDate(u.created_at),
+    },
+    {
+      key: 'actions' as any,
+      header: 'Actions',
+      render: (u) => (
+        <button
+          type="button"
+          onClick={() => handleOpenResetModal(u)}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 transition-colors cursor-pointer"
+        >
+          <KeyRound className="w-3.5 h-3.5" />
+          <span>Change Password</span>
+        </button>
+      ),
     },
   ];
 
@@ -359,6 +424,83 @@ export const SettingsPage: React.FC = () => {
             className="w-full py-2.5 bg-solar-600 hover:bg-solar-700 text-white font-bold rounded-xl shadow-md mt-2"
           >
             Create Staff Account
+          </button>
+        </form>
+      </Modal>
+
+      {/* Change / Reset Password Modal */}
+      <Modal
+        isOpen={showResetModal}
+        onClose={() => setShowResetModal(false)}
+        title={`Change Password: ${selectedUserForReset?.full_name || 'Staff'}`}
+        maxWidth="sm"
+      >
+        <form onSubmit={handleSaveResetPassword} className="space-y-3.5 text-xs">
+          {resetMsg && (
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-800 dark:text-emerald-300 font-bold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>{resetMsg}</span>
+            </div>
+          )}
+
+          <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+            <span className="text-[10px] text-slate-400 uppercase block font-bold">Target Account</span>
+            <span className="text-xs font-black text-slate-800 dark:text-slate-200 block mt-0.5">
+              {selectedUserForReset?.full_name} ({selectedUserForReset?.email})
+            </span>
+            <span className="text-[10px] text-solar-600 font-mono font-bold block mt-0.5">
+              Role: {selectedUserForReset?.role}
+            </span>
+          </div>
+
+          <div>
+            <label className="font-bold text-gray-700 dark:text-gray-300 uppercase block mb-1">
+              New Password *
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                required
+                minLength={6}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter at least 6 characters"
+                className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setNewPassword('Solar123!')}
+              className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-mono font-bold hover:bg-slate-200"
+            >
+              Preset: Solar123!
+            </button>
+            <button
+              type="button"
+              onClick={() => setNewPassword('SolarPass2026!')}
+              className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-mono font-bold hover:bg-slate-200"
+            >
+              Preset: SolarPass2026!
+            </button>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isResetting}
+            className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isResetting ? (
+              <span>Updating Password...</span>
+            ) : (
+              <>
+                <KeyRound className="w-4 h-4" />
+                <span>Save New Password</span>
+              </>
+            )}
           </button>
         </form>
       </Modal>
