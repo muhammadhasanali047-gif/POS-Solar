@@ -10,7 +10,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body class="bg-gray-50 text-gray-900 dark:bg-slate-950 dark:text-gray-100 antialiased selection:bg-solar-500 selection:text-white font-sans">
-    <div id="root"></div>
+    <div id="root">
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px;">
+        <div style="padding: 16px 24px; background: white; border-radius: 20px; box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.06); border: 1px solid #e2e8f0; margin-bottom: 24px; text-align: center;">
+          <img src="/ji-energies-logo.png" alt="Alp Solar & J.I Energies" style="height: 48px; width: auto; display: block; margin: 0 auto;" onerror="this.style.display='none'" />
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <div style="width: 20px; height: 20px; border: 3px solid #f59e0b; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+          <span style="font-size: 14px; font-weight: 800; color: #0f172a; letter-spacing: -0.2px;">Connecting to Cloud POS Portal...</span>
+        </div>
+        <p style="font-size: 11px; color: #64748b; font-weight: 600; margin: 0;">Alp Solar &amp; J.I Energies • Sales &amp; Inventory Management</p>
+        <style>
+          @keyframes spin { to { transform: rotate(360deg); } }
+        </style>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
