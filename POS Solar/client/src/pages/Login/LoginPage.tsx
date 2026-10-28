@@ -4,8 +4,8 @@ import api from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 
 export const LoginPage: React.FC = () => {
-  // Determine initial role from URL query param (?role=manager or ?role=admin/ceo)
-  const getInitialRole = (): 'CEO' | 'MANAGER' => {
+  // Check if role is explicitly locked via URL query param (?role=manager or ?role=admin/ceo)
+  const getRoleFromUrl = (): 'CEO' | 'MANAGER' | null => {
     try {
       const params = new URLSearchParams(window.location.search);
       const roleParam = params.get('role')?.toLowerCase();
@@ -16,8 +16,15 @@ export const LoginPage: React.FC = () => {
       if (path.includes('manager')) return 'MANAGER';
       if (path.includes('admin') || path.includes('ceo')) return 'CEO';
     } catch {}
-    return 'CEO';
+    return null;
   };
+
+  const getInitialRole = (): 'CEO' | 'MANAGER' => {
+    return getRoleFromUrl() || 'CEO';
+  };
+
+  const [roleFromUrl, setRoleFromUrl] = useState<'CEO' | 'MANAGER' | null>(getRoleFromUrl);
+  const isRoleLocked = roleFromUrl !== null;
 
   const getInitialPassword = (role: 'CEO' | 'MANAGER'): string => {
     try {
@@ -39,7 +46,9 @@ export const LoginPage: React.FC = () => {
   // Listen to URL changes if user navigates with browser back/forward
   useEffect(() => {
     const handleUrlChange = () => {
-      const role = getInitialRole();
+      const urlRole = getRoleFromUrl();
+      setRoleFromUrl(urlRole);
+      const role = urlRole || 'CEO';
       setActiveRole(role);
       setEmail(role === 'MANAGER' ? 'manager@solarpos.com' : 'ceo@solarpos.com');
       setPassword(getInitialPassword(role));
@@ -153,42 +162,44 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Role Fill Tabs */}
-        <div className="mb-4 sm:mb-5 bg-slate-50 border border-slate-200/80 rounded-2xl p-2">
-          <div className="flex items-center justify-between mb-1.5 px-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              Select Role Portal
-            </span>
-            <span className="text-[10px] text-slate-400 font-semibold">Pre-configured ID</span>
-          </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleSelectRole('CEO')}
-              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                isCEO
-                  ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/25 ring-2 ring-amber-400/30'
-                  : 'bg-white hover:bg-amber-50/70 text-slate-700 border-slate-200'
-              }`}
-            >
-              <Crown className="w-3.5 h-3.5" />
-              <span>CEO / Admin</span>
-            </button>
+        {/* Quick Role Fill Tabs - Only rendered when on a generic un-scoped login URL */}
+        {!isRoleLocked && (
+          <div className="mb-4 sm:mb-5 bg-slate-50 border border-slate-200/80 rounded-2xl p-2">
+            <div className="flex items-center justify-between mb-1.5 px-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Select Role Portal
+              </span>
+              <span className="text-[10px] text-slate-400 font-semibold">Pre-configured ID</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleSelectRole('CEO')}
+                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  isCEO
+                    ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/25 ring-2 ring-amber-400/30'
+                    : 'bg-white hover:bg-amber-50/70 text-slate-700 border-slate-200'
+                }`}
+              >
+                <Crown className="w-3.5 h-3.5" />
+                <span>CEO / Admin</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => handleSelectRole('MANAGER')}
-              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                !isCEO
-                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-md shadow-emerald-600/25 ring-2 ring-emerald-400/30'
-                  : 'bg-white hover:bg-emerald-50/70 text-slate-700 border-slate-200'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Manager</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => handleSelectRole('MANAGER')}
+                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  !isCEO
+                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-md shadow-emerald-600/25 ring-2 ring-emerald-400/30'
+                    : 'bg-white hover:bg-emerald-50/70 text-slate-700 border-slate-200'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Manager</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {error && (
           <div className="mb-4 sm:mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center gap-2 animate-shake">
