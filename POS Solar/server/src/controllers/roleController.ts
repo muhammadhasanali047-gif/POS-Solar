@@ -22,7 +22,7 @@ const ALL_TABS = [
 ];
 
 const DEFAULT_MAP: Record<string, string[]> = {
-  dashboard: ['ADMIN', 'CEO', 'MANAGER', 'CASHIER'],
+  dashboard: ['ADMIN', 'CEO'],
   'quick-flow': ['ADMIN', 'CEO', 'MANAGER', 'CASHIER'],
   pos: ['ADMIN', 'CEO', 'MANAGER', 'CASHIER'],
   quotations: ['ADMIN', 'CEO', 'MANAGER', 'CASHIER'],
@@ -58,7 +58,7 @@ export const getRolePermissions = async (req: Request, res: Response) => {
           name: 'MANAGER',
           description: 'Operations & Branch Manager',
           permissions: JSON.stringify([
-            'dashboard', 'quick-flow', 'pos', 'quotations', 'packages', 'customers',
+            'quick-flow', 'pos', 'quotations', 'packages', 'customers',
             'products', 'inventory', 'serials', 'suppliers', 'installations',
             'warranties', 'claims'
           ]),

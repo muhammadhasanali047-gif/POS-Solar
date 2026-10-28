@@ -7,14 +7,17 @@ export const LoginPage: React.FC = () => {
   // Check if role is explicitly locked via URL query param (?role=manager or ?role=admin/ceo)
   const getRoleFromUrl = (): 'CEO' | 'MANAGER' | null => {
     try {
-      const params = new URLSearchParams(window.location.search);
-      const roleParam = params.get('role')?.toLowerCase();
-      if (roleParam === 'manager') return 'MANAGER';
-      if (roleParam === 'admin' || roleParam === 'ceo') return 'CEO';
+      const search = (window.location.search || '').toLowerCase();
+      const hash = (window.location.hash || '').toLowerCase();
+      const pathname = (window.location.pathname || '').toLowerCase();
+      const href = (window.location.href || '').toLowerCase();
 
-      const path = window.location.pathname.toLowerCase();
-      if (path.includes('manager')) return 'MANAGER';
-      if (path.includes('admin') || path.includes('ceo')) return 'CEO';
+      if (search.includes('manager') || hash.includes('manager') || pathname.includes('manager') || href.includes('role=manager')) {
+        return 'MANAGER';
+      }
+      if (search.includes('admin') || search.includes('ceo') || hash.includes('admin') || href.includes('role=admin') || href.includes('role=ceo')) {
+        return 'CEO';
+      }
     } catch {}
     return null;
   };

@@ -25,9 +25,27 @@ import { AccessPage } from './pages/Access/AccessPage';
 import { useAccessStore } from './stores/accessStore';
 
 export const App: React.FC = () => {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, logout } = useAuthStore();
   const { isTabAllowed, fetchPermissions } = useAccessStore();
-  const [currentTab, setCurrentTab] = useState<NavItemKey>('dashboard');
+
+  const getDefaultTabForRole = (role?: string): NavItemKey => {
+    if (role === 'MANAGER' || role === 'CASHIER') return 'quick-flow';
+    return 'dashboard';
+  };
+
+  const [currentTab, setCurrentTab] = useState<NavItemKey>(() => getDefaultTabForRole(user?.role));
+
+  // If role is explicitly specified in URL (e.g. ?role=manager) but existing session is CEO, auto-logout
+  useEffect(() => {
+    try {
+      const urlStr = (window.location.search + window.location.hash + window.location.pathname).toLowerCase();
+      if (urlStr.includes('manager') && user?.role && user.role !== 'MANAGER') {
+        logout();
+      } else if ((urlStr.includes('admin') || urlStr.includes('ceo')) && user?.role && user.role === 'MANAGER') {
+        logout();
+      }
+    } catch {}
+  }, [user, logout]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -35,15 +53,15 @@ export const App: React.FC = () => {
     }
   }, [isAuthenticated, fetchPermissions]);
 
-  // Enforce dynamic role access guards
+  // Enforce dynamic role access guards - Manager should never see Dashboard Overview
   useEffect(() => {
-    if (!isTabAllowed(currentTab, user?.role)) {
-      if (isTabAllowed('dashboard', user?.role)) {
-        setCurrentTab('dashboard');
-      } else if (isTabAllowed('quick-flow', user?.role)) {
+    if (!isTabAllowed(currentTab, user?.role) || (user?.role === 'MANAGER' && currentTab === 'dashboard')) {
+      if (isTabAllowed('quick-flow', user?.role)) {
         setCurrentTab('quick-flow');
       } else if (isTabAllowed('pos', user?.role)) {
         setCurrentTab('pos');
+      } else if (isTabAllowed('dashboard', user?.role)) {
+        setCurrentTab('dashboard');
       }
     }
   }, [user, currentTab, isTabAllowed]);

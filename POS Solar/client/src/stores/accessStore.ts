@@ -159,7 +159,7 @@ export const ALL_TAB_DEFINITIONS: TabDefinition[] = [
 ];
 
 export const DEFAULT_PERMISSIONS: Record<string, string[]> = {
-  dashboard: ['ADMIN', 'CEO', 'MANAGER', 'CASHIER'],
+  dashboard: ['ADMIN', 'CEO'],
   'quick-flow': ['ADMIN', 'CEO', 'MANAGER', 'CASHIER'],
   pos: ['ADMIN', 'CEO', 'MANAGER', 'CASHIER'],
   quotations: ['ADMIN', 'CEO', 'MANAGER', 'CASHIER'],
@@ -176,7 +176,7 @@ export const DEFAULT_PERMISSIONS: Record<string, string[]> = {
   access: ['ADMIN', 'CEO'],
 };
 
-const STORAGE_KEY = 'solar_pos_tab_permissions_v1';
+const STORAGE_KEY = 'solar_pos_tab_permissions_v2';
 
 interface AccessStore {
   permissions: Record<string, string[]>;
