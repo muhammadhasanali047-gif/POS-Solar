@@ -135,8 +135,8 @@ export const AccessPage: React.FC = () => {
   const [linkMode, setLinkMode] = useState<'public' | 'local'>('public');
 
   const activeOrigin = linkMode === 'public' ? LIVE_CLOUD_ORIGIN : (currentOrigin || 'http://localhost:5173');
-  const adminPortalUrl = `${activeOrigin}/?role=admin`;
-  const managerPortalUrl = `${activeOrigin}/?role=manager`;
+  const adminPortalUrl = `${activeOrigin}/admin`;
+  const managerPortalUrl = `${activeOrigin}/manager`;
 
   const handleCopyLink = async (url: string, role: 'admin' | 'manager') => {
     try {

@@ -1,33 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Lock, Mail, Eye, EyeOff, Crown, ShieldCheck, CheckCircle } from 'lucide-react';
+import { ArrowRight, Lock, Mail, Eye, EyeOff, Crown, ShieldCheck } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 
 export const LoginPage: React.FC = () => {
-  // Check if role is explicitly locked via URL query param (?role=manager or ?role=admin/ceo)
-  const getRoleFromUrl = (): 'CEO' | 'MANAGER' | null => {
+  // Strict URL & storage role detection
+  const detectPortalRole = (): 'CEO' | 'MANAGER' => {
     try {
-      const search = (window.location.search || '').toLowerCase();
-      const hash = (window.location.hash || '').toLowerCase();
-      const pathname = (window.location.pathname || '').toLowerCase();
       const href = (window.location.href || '').toLowerCase();
+      const search = (window.location.search || '').toLowerCase();
+      const path = (window.location.pathname || '').toLowerCase();
+      const hash = (window.location.hash || '').toLowerCase();
 
-      if (search.includes('manager') || hash.includes('manager') || pathname.includes('manager') || href.includes('role=manager')) {
+      // 1. Explicit Manager URL (/manager, ?role=manager, #manager)
+      if (
+        path.includes('/manager') ||
+        search.includes('role=manager') ||
+        hash.includes('manager') ||
+        href.includes('role=manager')
+      ) {
+        try { localStorage.setItem('solar_locked_portal', 'MANAGER'); } catch {}
         return 'MANAGER';
       }
-      if (search.includes('admin') || search.includes('ceo') || hash.includes('admin') || href.includes('role=admin') || href.includes('role=ceo')) {
+
+      // 2. Explicit CEO/Admin URL (/admin, /ceo, ?role=admin, ?role=ceo, #admin)
+      if (
+        path.includes('/admin') ||
+        path.includes('/ceo') ||
+        search.includes('role=admin') ||
+        search.includes('role=ceo') ||
+        hash.includes('admin') ||
+        href.includes('role=admin') ||
+        href.includes('role=ceo')
+      ) {
+        try { localStorage.setItem('solar_locked_portal', 'CEO'); } catch {}
         return 'CEO';
       }
+
+      // 3. Check saved device role
+      const saved = localStorage.getItem('solar_locked_portal');
+      if (saved === 'CEO') return 'CEO';
+      if (saved === 'MANAGER') return 'MANAGER';
     } catch {}
-    return null;
+
+    // Default to MANAGER if no explicit route is provided
+    return 'MANAGER';
   };
 
-  const getInitialRole = (): 'CEO' | 'MANAGER' => {
-    return getRoleFromUrl() || 'CEO';
-  };
-
-  const [roleFromUrl, setRoleFromUrl] = useState<'CEO' | 'MANAGER' | null>(getRoleFromUrl);
-  const isRoleLocked = roleFromUrl !== null;
+  const [activeRole, setActiveRole] = useState<'CEO' | 'MANAGER'>(detectPortalRole);
 
   const getInitialPassword = (role: 'CEO' | 'MANAGER'): string => {
     try {
@@ -37,48 +57,37 @@ export const LoginPage: React.FC = () => {
     return 'Solar123!';
   };
 
-  const [activeRole, setActiveRole] = useState<'CEO' | 'MANAGER'>(getInitialRole);
-  const [email, setEmail] = useState(() => (getInitialRole() === 'MANAGER' ? 'manager@solarpos.com' : 'ceo@solarpos.com'));
-  const [password, setPassword] = useState(() => getInitialPassword(getInitialRole()));
+  const [email, setEmail] = useState(() => (detectPortalRole() === 'MANAGER' ? 'manager@solarpos.com' : 'ceo@solarpos.com'));
+  const [password, setPassword] = useState(() => getInitialPassword(detectPortalRole()));
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { login } = useAuthStore();
 
-  // Listen to URL changes if user navigates with browser back/forward
   useEffect(() => {
     const handleUrlChange = () => {
-      const urlRole = getRoleFromUrl();
-      setRoleFromUrl(urlRole);
-      const role = urlRole || 'CEO';
-      setActiveRole(role);
-      setEmail(role === 'MANAGER' ? 'manager@solarpos.com' : 'ceo@solarpos.com');
-      setPassword(getInitialPassword(role));
+      const detected = detectPortalRole();
+      setActiveRole(detected);
+      setEmail(detected === 'MANAGER' ? 'manager@solarpos.com' : 'ceo@solarpos.com');
+      setPassword(getInitialPassword(detected));
     };
     window.addEventListener('popstate', handleUrlChange);
     return () => window.removeEventListener('popstate', handleUrlChange);
   }, []);
 
-  const handleSelectRole = (role: 'CEO' | 'MANAGER') => {
-    setActiveRole(role);
-    if (role === 'CEO') {
-      setEmail('ceo@solarpos.com');
-      setPassword(getInitialPassword('CEO'));
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.set('role', 'admin');
-        window.history.replaceState({}, '', url.toString());
-      } catch {}
-    } else {
-      setEmail('manager@solarpos.com');
-      setPassword(getInitialPassword('MANAGER'));
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.set('role', 'manager');
-        window.history.replaceState({}, '', url.toString());
-      } catch {}
-    }
+  const switchPortal = (newRole: 'CEO' | 'MANAGER') => {
+    setActiveRole(newRole);
+    setEmail(newRole === 'MANAGER' ? 'manager@solarpos.com' : 'ceo@solarpos.com');
+    setPassword(getInitialPassword(newRole));
+    setError(null);
+    try {
+      localStorage.setItem('solar_locked_portal', newRole);
+      const url = new URL(window.location.href);
+      url.pathname = newRole === 'MANAGER' ? '/manager' : '/admin';
+      url.searchParams.delete('role');
+      window.history.pushState({}, '', url.toString());
+    } catch {}
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,6 +100,7 @@ export const LoginPage: React.FC = () => {
       if (res.data.success) {
         try {
           localStorage.setItem(`solar_${activeRole.toLowerCase()}_custom_pwd`, password);
+          localStorage.setItem('solar_locked_portal', activeRole);
         } catch {}
         login(res.data.data.token, res.data.data.user);
       } else {
@@ -129,7 +139,7 @@ export const LoginPage: React.FC = () => {
       {/* Main Login Card */}
       <div className="relative z-10 w-full max-w-[440px] mx-auto bg-white rounded-2xl sm:rounded-3xl shadow-[0_20px_50px_rgba(15,23,42,0.08)] border border-slate-200/90 p-5 sm:p-8 transition-all">
         {/* Header Branding */}
-        <div className="flex flex-col items-center text-center mb-4 sm:mb-5">
+        <div className="flex flex-col items-center text-center mb-5">
           <div className="p-2 sm:p-2.5 rounded-2xl bg-slate-50 border border-slate-100/90 shadow-sm mb-3">
             <img
               src="/ji-energies-logo.png"
@@ -139,7 +149,7 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {/* Role Dedicated Banner & Title */}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider shadow-2xs border transition-colors">
               {isCEO ? (
                 <span className="text-amber-800 bg-amber-100 border border-amber-300 flex items-center gap-1 px-2.5 py-0.5 rounded-full">
@@ -154,7 +164,7 @@ export const LoginPage: React.FC = () => {
               )}
             </div>
 
-            <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               {isCEO ? 'Executive & Admin Portal' : 'Operations & Manager Portal'}
             </h1>
             <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto">
@@ -165,54 +175,15 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Role Fill Tabs - Only rendered when on a generic un-scoped login URL */}
-        {!isRoleLocked && (
-          <div className="mb-4 sm:mb-5 bg-slate-50 border border-slate-200/80 rounded-2xl p-2">
-            <div className="flex items-center justify-between mb-1.5 px-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Select Role Portal
-              </span>
-              <span className="text-[10px] text-slate-400 font-semibold">Pre-configured ID</span>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleSelectRole('CEO')}
-                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                  isCEO
-                    ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/25 ring-2 ring-amber-400/30'
-                    : 'bg-white hover:bg-amber-50/70 text-slate-700 border-slate-200'
-                }`}
-              >
-                <Crown className="w-3.5 h-3.5" />
-                <span>CEO / Admin</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelectRole('MANAGER')}
-                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                  !isCEO
-                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-md shadow-emerald-600/25 ring-2 ring-emerald-400/30'
-                    : 'bg-white hover:bg-emerald-50/70 text-slate-700 border-slate-200'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Manager</span>
-              </button>
-            </div>
-          </div>
-        )}
-
         {error && (
-          <div className="mb-4 sm:mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center gap-2 animate-shake">
+          <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center gap-2 animate-shake">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
               Work Email Address
@@ -224,7 +195,7 @@ export const LoginPage: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="you@solarcompany.com"
+                placeholder={isCEO ? 'ceo@solarpos.com' : 'manager@solarpos.com'}
                 className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 font-bold focus:outline-none focus:bg-white transition-all shadow-xs ${
                   isCEO
                     ? 'focus:border-amber-500 focus:ring-3 focus:ring-amber-500/15'
@@ -255,9 +226,8 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors p-1 cursor-pointer"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                 tabIndex={-1}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -267,30 +237,51 @@ export const LoginPage: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-3 px-4 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 mt-2 cursor-pointer ${
+            className={`w-full py-3 px-4 rounded-xl text-white font-bold text-xs sm:text-sm tracking-wide transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none ${
               isCEO
-                ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-600 hover:to-amber-800 shadow-amber-600/20'
-                : 'bg-gradient-to-r from-emerald-600 via-teal-700 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 shadow-emerald-700/20'
+                ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/25 ring-2 ring-amber-500/20'
+                : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25 ring-2 ring-emerald-500/20'
             }`}
           >
             {isLoading ? (
-              <span className="flex items-center gap-2">
+              <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 <span>Authenticating...</span>
-              </span>
+              </>
             ) : (
               <>
-                <span>Sign In as {isCEO ? 'CEO / Admin' : 'Manager'}</span>
+                <span>{isCEO ? 'Sign In as CEO / Admin' : 'Sign In to Manager Portal'}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
           </button>
         </form>
 
-        {/* Footer info */}
-        <p className="text-center text-[10px] sm:text-[11px] text-slate-400 mt-4 sm:mt-5 font-medium">
-          © 2026 J.I Energies &amp; Alp Solar • Central POS System
-        </p>
+        {/* Clean Footer with Discreet Switcher Link */}
+        <div className="mt-6 pt-4 border-t border-slate-100 text-center space-y-1.5">
+          <p className="text-[11px] text-slate-400 font-medium">
+            © 2026 J.I Energies &amp; Alp Solar • Central POS System
+          </p>
+          <div>
+            {isCEO ? (
+              <button
+                type="button"
+                onClick={() => switchPortal('MANAGER')}
+                className="text-[11px] text-slate-400 hover:text-emerald-600 transition-colors underline cursor-pointer"
+              >
+                Branch Operations / Manager Portal →
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => switchPortal('CEO')}
+                className="text-[11px] text-slate-400 hover:text-amber-600 transition-colors underline cursor-pointer"
+              >
+                Executive &amp; CEO Admin Portal →
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
