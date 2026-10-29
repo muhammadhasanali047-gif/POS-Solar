@@ -17,6 +17,7 @@ import {
   Receipt,
   CheckCircle2,
   Package,
+  Trash2,
 } from 'lucide-react';
 import api from '../../lib/api';
 import { formatCurrency, formatDate } from '../../lib/utils';
@@ -116,6 +117,24 @@ export const CustomersPage: React.FC = () => {
       }
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to record payment');
+    }
+  };
+
+  const handleDeleteCustomer = async (c: Customer) => {
+    const confirmMsg = c.outstanding_balance > 0
+      ? `⚠️ WARNING: Customer "${c.name}" has an outstanding balance of ${formatCurrency(c.outstanding_balance)}!\n\nAre you sure you want to permanently delete this customer and all their ledger/invoice records?`
+      : `Are you sure you want to delete customer "${c.name}" (${c.customer_no})?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await api.delete(`/customers/${c.id}`);
+      if (res.data?.success) {
+        alert(res.data?.message || `Customer "${c.name}" deleted successfully.`);
+        loadCustomers();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete customer');
     }
   };
 
@@ -239,6 +258,15 @@ export const CustomersPage: React.FC = () => {
               <span>Collect Due</span>
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => handleDeleteCustomer(c)}
+            className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-600 dark:hover:text-white border border-rose-200 dark:border-rose-900/50 hover:border-transparent text-xs font-bold rounded-xl shadow-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+            title={`Delete Customer ${c.name}`}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete</span>
+          </button>
         </div>
       ),
     },

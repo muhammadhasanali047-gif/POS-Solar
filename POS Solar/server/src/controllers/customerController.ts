@@ -362,3 +362,113 @@ export const getCustomerLedger = async (req: Request, res: Response) => {
     return sendError(res, err.message, 500);
   }
 };
+
+export const deleteCustomer = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const customer = await prisma.customer.findUnique({
+      where: { id },
+    });
+
+    if (!customer) {
+      return sendError(res, 'Customer not found', 404);
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Unlink SerialNumbers
+      await tx.serialNumber.updateMany({
+        where: { current_customer_id: id },
+        data: { current_customer_id: null },
+      });
+
+      // 2. Delete Warranty Claims
+      await tx.warrantyClaim.deleteMany({
+        where: { customer_id: id },
+      });
+
+      // 3. Delete Warranties
+      await tx.warranty.deleteMany({
+        where: { customer_id: id },
+      });
+
+      // 4. Delete Installations
+      await tx.installation.deleteMany({
+        where: { customer_id: id },
+      });
+
+      // 5. Delete Payments
+      await tx.payment.deleteMany({
+        where: { customer_id: id },
+      });
+
+      // 6. Delete Sales and Sale Items
+      const sales = await tx.sale.findMany({
+        where: { customer_id: id },
+        select: { id: true },
+      });
+      const saleIds = sales.map((s) => s.id);
+
+      if (saleIds.length > 0) {
+        await tx.commission.deleteMany({
+          where: { sale_id: { in: saleIds } },
+        });
+
+        const saleItems = await tx.saleItem.findMany({
+          where: { sale_id: { in: saleIds } },
+          select: { id: true },
+        });
+        const saleItemIds = saleItems.map((si) => si.id);
+        if (saleItemIds.length > 0) {
+          await tx.serialNumber.updateMany({
+            where: { sale_item_id: { in: saleItemIds } },
+            data: { sale_item_id: null },
+          });
+          await tx.saleItem.deleteMany({
+            where: { id: { in: saleItemIds } },
+          });
+        }
+
+        await tx.sale.deleteMany({
+          where: { id: { in: saleIds } },
+        });
+      }
+
+      // 7. Delete Quotations and Quotation Items
+      const quotations = await tx.quotation.findMany({
+        where: { customer_id: id },
+        select: { id: true },
+      });
+      const quotationIds = quotations.map((q) => q.id);
+
+      if (quotationIds.length > 0) {
+        await tx.quotationItem.deleteMany({
+          where: { quotation_id: { in: quotationIds } },
+        });
+        await tx.quotation.deleteMany({
+          where: { id: { in: quotationIds } },
+        });
+      }
+
+      // 8. Delete Customer
+      await tx.customer.delete({
+        where: { id },
+      });
+    });
+
+    await logAudit({
+      userId: req.user?.id,
+      action: 'DELETE',
+      entity: 'Customer',
+      entityId: id,
+      oldData: {
+        customer_no: customer.customer_no,
+        name: customer.name,
+      },
+    });
+
+    return sendSuccess(res, null, `Customer ${customer.name} and all related records deleted successfully`);
+  } catch (err: any) {
+    return sendError(res, err.message, 500);
+  }
+};
