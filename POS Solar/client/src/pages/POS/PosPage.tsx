@@ -22,7 +22,6 @@ import { Badge } from '../../components/ui/Badge';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { usePrinterStore, PrintDocumentData } from '../../stores/printerStore';
 import { useAuthStore } from '../../stores/authStore';
-import { PrintableDocument } from '../../components/print/PrintableDocument';
 import { PaymentMethodSelect } from '../../components/ui/PaymentMethodSelect';
 
 const CATEGORY_ORDER = [
@@ -1096,9 +1095,6 @@ export const PosPage: React.FC = () => {
           },
         ]}
       />
-
-      {/* Hidden Dedicated Printable Area for Instant Hardware Output */}
-      <PrintableDocument />
     </div>
   );
 };

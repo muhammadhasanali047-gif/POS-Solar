@@ -28,7 +28,6 @@ import { formatCurrency, formatDate } from '../../lib/utils';
 import { usePrinterStore } from '../../stores/printerStore';
 import { useAuthStore } from '../../stores/authStore';
 import { PrinterSettingsModal } from '../../components/print/PrinterSettingsModal';
-import { PrintableDocument } from '../../components/print/PrintableDocument';
 import { Customer, Product, Category, Warehouse } from '../../types';
 import { CustomerLedgerModal } from '../../components/customers/CustomerLedgerModal';
 import { PaymentMethodSelect } from '../../components/ui/PaymentMethodSelect';
@@ -1726,9 +1725,6 @@ export const QuickWorkflowPage: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Hidden Dedicated Printable Area for Instant Hardware Output */}
-      <PrintableDocument />
 
       {/* Printer Configuration Modal */}
       <PrinterSettingsModal

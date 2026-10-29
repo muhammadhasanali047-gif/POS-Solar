@@ -32,12 +32,24 @@
 /* Global Print Media Rules */
 @media print {
   /* Hide all interactive web UI elements */
-  body {
+  html, body {
     visibility: hidden !important;
     background: #ffffff !important;
     color: #000000 !important;
     margin: 0 !important;
     padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #root, #root > div {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
   /* Exclusively display the dedicated printable area */
@@ -52,7 +64,7 @@
     left: 0 !important;
     top: 0 !important;
     width: 100% !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     padding: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;
@@ -67,9 +79,33 @@
     display: none !important;
   }
 
+  /* Page breaks & Table print alignment optimization */
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  table {
+    page-break-inside: auto;
+    border-collapse: collapse !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
   @page {
-    margin: 3mm;
     size: auto;
+    margin: 6mm 6mm;
   }
 }
 

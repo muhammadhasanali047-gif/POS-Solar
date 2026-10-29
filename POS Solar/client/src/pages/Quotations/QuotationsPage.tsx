@@ -19,7 +19,6 @@ import { Quotation, Customer, Product, SolarPackage } from '../../types';
 import { CreatableSelect } from '../../components/ui/CreatableSelect';
 import { PaymentMethodSelect } from '../../components/ui/PaymentMethodSelect';
 import { usePrinterStore } from '../../stores/printerStore';
-import { PrintableDocument } from '../../components/print/PrintableDocument';
 
 export const QuotationsPage: React.FC = () => {
   const { settings, triggerPrint } = usePrinterStore();
@@ -851,9 +850,6 @@ export const QuotationsPage: React.FC = () => {
           </div>
         </form>
       </Modal>
-
-      {/* Hidden Dedicated Printable Area */}
-      <PrintableDocument />
     </div>
   );
 };
