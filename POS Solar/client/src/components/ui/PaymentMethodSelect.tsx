@@ -36,7 +36,9 @@ export const PaymentMethodSelect: React.FC<PaymentMethodSelectProps> = ({
   showLabel = true,
 }) => {
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'CEO';
+  // Admin, CEO, and Manager all have full access to select and manage payment methods
+  const canEdit = user?.role === 'ADMIN' || user?.role === 'CEO' || user?.role === 'MANAGER' || user?.role === 'CASHIER' || !user;
+  const canManage = user?.role === 'ADMIN' || user?.role === 'CEO' || user?.role === 'MANAGER';
 
   const [customMethods, setCustomMethods] = useState<string[]>(() => {
     try {
@@ -98,7 +100,7 @@ export const PaymentMethodSelect: React.FC<PaymentMethodSelectProps> = ({
     const handleOutsideClick = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
-        if (isAdmin && inputText.trim()) {
+        if (canEdit && inputText.trim()) {
           const matched = allOptions.find(
             (o) => o.name.toLowerCase() === inputText.trim().toLowerCase() || o.id === inputText.trim()
           );
@@ -113,7 +115,7 @@ export const PaymentMethodSelect: React.FC<PaymentMethodSelectProps> = ({
     };
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [inputText, allOptions, isAdmin]);
+  }, [inputText, allOptions, canEdit]);
 
   const handleCreateAndSelect = (customName: string) => {
     const trimmed = customName.trim();
@@ -161,10 +163,10 @@ export const PaymentMethodSelect: React.FC<PaymentMethodSelectProps> = ({
     (o) => o.name.toLowerCase() === inputText.trim().toLowerCase()
   );
 
-  const showCreateOption = isAdmin && inputText.trim().length > 0 && !exactMatchExists;
+  const showCreateOption = canManage && inputText.trim().length > 0 && !exactMatchExists;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!isAdmin) return;
+    if (!canEdit) return;
 
     if (!isOpen) {
       if (e.key === 'ArrowDown' || e.key === 'Enter') {
@@ -211,22 +213,7 @@ export const PaymentMethodSelect: React.FC<PaymentMethodSelectProps> = ({
           </label>
 
           <div className="flex items-center gap-1.5">
-            {isAdmin ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
-                <ShieldCheck className="w-2.5 h-2.5" />
-                Admin Edit
-              </span>
-            ) : (
-              <span
-                className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60"
-                title="Only Admin has permission to edit payment methods"
-              >
-                <Lock className="w-2.5 h-2.5" />
-                Admin Only
-              </span>
-            )}
-
-            {isAdmin && (
+            {canManage && (
               <button
                 type="button"
                 onClick={() => setIsManageModalOpen(true)}
@@ -245,84 +232,61 @@ export const PaymentMethodSelect: React.FC<PaymentMethodSelectProps> = ({
         <input
           ref={inputRef}
           type="text"
-          disabled={!isAdmin}
+          disabled={!canEdit}
           value={inputText}
-          placeholder={isAdmin ? 'Type or choose payment method...' : 'Default Payment Method (Locked)'}
+          placeholder="Type or choose payment method..."
           onFocus={() => {
-            if (isAdmin) setIsOpen(true);
+            if (canEdit) setIsOpen(true);
           }}
           onChange={(e) => {
-            if (!isAdmin) return;
+            if (!canEdit) return;
             setInputText(e.target.value);
             setIsOpen(true);
             setHighlightedIndex(-1);
           }}
           onKeyDown={handleKeyDown}
-          title={!isAdmin ? 'Payment Method is locked. Only Admin can edit this dropdown.' : 'Click to select or type a custom payment method'}
-          className={`w-full p-2.5 pr-14 text-xs font-semibold rounded-xl border transition-all shadow-xs ${
-            !isAdmin
-              ? 'bg-gray-100 dark:bg-slate-800/80 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-slate-700 cursor-not-allowed select-none'
-              : 'bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-solar-500/20 focus:border-solar-500 cursor-text'
-          }`}
+          title="Click to select or type a custom payment method"
+          className="w-full p-2.5 pr-14 text-xs font-semibold rounded-xl border transition-all shadow-xs bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-solar-500/20 focus:border-solar-500 cursor-text"
         />
 
         {/* Action icons */}
         <div className="absolute right-2 flex items-center gap-1">
-          {!isAdmin ? (
-            <div
-              className="p-1 text-amber-600 dark:text-amber-400"
-              title="Locked: Only Admin / CEO can edit this dropdown"
+          {inputText && (
+            <button
+              type="button"
+              onClick={() => {
+                setInputText('');
+                onChange('');
+                setIsOpen(true);
+              }}
+              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md"
+              title="Clear"
+              tabIndex={-1}
             >
-              <Lock className="w-3.5 h-3.5" />
-            </div>
-          ) : (
-            <>
-              {inputText && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInputText('');
-                    onChange('');
-                    setIsOpen(true);
-                  }}
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md"
-                  title="Clear"
-                  tabIndex={-1}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOpen(!isOpen);
-                  if (!isOpen && inputRef.current) inputRef.current.focus();
-                }}
-                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md"
-                title="Toggle payment methods"
-                tabIndex={-1}
-              >
-                <ChevronDown
-                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                    isOpen ? 'rotate-180 text-solar-600' : ''
-                  }`}
-                />
-              </button>
-            </>
+              <X className="w-3.5 h-3.5" />
+            </button>
           )}
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(!isOpen);
+              if (!isOpen && inputRef.current) inputRef.current.focus();
+            }}
+            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md"
+            title="Toggle payment methods"
+            tabIndex={-1}
+          >
+            <ChevronDown
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                isOpen ? 'rotate-180 text-solar-600' : ''
+              }`}
+            />
+          </button>
         </div>
       </div>
 
-      {/* Non-admin helper text */}
-      {!isAdmin && (
-        <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-400/90 font-medium flex items-center gap-1">
-          <Lock className="w-2.5 h-2.5 flex-shrink-0" />
-          <span>Ye dropdown sirf Admin ko edit karne ka option hai.</span>
-        </p>
-      )}
-
-      {/* Dropdown Menu (Only opens for Admin) */}
-      {isAdmin && isOpen && (
+      {/* Dropdown Menu */}
+      {canEdit && isOpen && (
         <div className="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl shadow-xl z-50 max-h-56 overflow-y-auto py-1">
           {/* Quick Create Custom Option */}
           {showCreateOption && (
@@ -388,8 +352,8 @@ export const PaymentMethodSelect: React.FC<PaymentMethodSelectProps> = ({
         </div>
       )}
 
-      {/* Admin Manage Payment Methods Modal */}
-      {isAdmin && isManageModalOpen && (
+      {/* Manage Payment Methods Modal */}
+      {canManage && isManageModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-slate-800">
